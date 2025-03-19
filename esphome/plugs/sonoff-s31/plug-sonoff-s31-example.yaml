@@ -1,0 +1,8 @@
+substitutions:
+  device_name: "plug-sonoff-s31-example"
+  device_friendly_name: "PlugSonoffS31Example"
+  device_api_encryption_key: "ENTER_YOUR_BASE64_ENCRYPTION_KEY_HERE!!!"
+  device_ota_password: "ENTER_YOUR_OTA_PASSWORD_HERE!!!"
+  device_ap_wifi_password: "ENTER_YOUR_BACKUP_AP_PASSWORD_HERE!!!"
+
+<<: !include templates/template-plug-sonoff-s31.yaml
