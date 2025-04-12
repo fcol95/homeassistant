@@ -68,6 +68,14 @@ sensor:
   - platform: wifi_signal
     name: "WiFi Signal"
     update_interval: 60s
+    entity_category: "diagnostic"
+    
+  - platform: uptime
+    name: "Uptime"
+    id: sensor_uptime
+    update_interval: 300s
+    entity_category: "diagnostic"
+
   - platform: cse7766
     current:
       name: "Current"
@@ -107,11 +115,14 @@ sensor:
 text_sensor:
   - platform: wifi_info
     ip_address:
-      name: "IP"
+      name: "IP Address"
+      entity_category: "diagnostic"
     ssid:
-      name: "SSID"
+      name: "Connected SSID"
+      entity_category: "diagnostic"
     mac_address:
-      name: "MAC"
+      name: "MAC Address"
+      entity_category: "diagnostic"
 
 switch:
   - platform: gpio
@@ -122,7 +133,7 @@ switch:
 
 time:
   - platform: homeassistant #(required for total_daily_energy)
-    id: my_time
+    id: ha_time
 
 status_led:
   pin:

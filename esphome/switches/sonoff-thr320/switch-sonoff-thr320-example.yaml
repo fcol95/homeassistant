@@ -1,0 +1,11 @@
+substitutions:
+  device_name: "switch-sonoff-thr320-example"
+  device_friendly_name: "SwitchSonoffTHR320Example"
+  device_api_encryption_key: "ENTER_YOUR_BASE64_ENCRYPTION_KEY_HERE!!!"
+  device_ota_password: "ENTER_YOUR_OTA_PASSWORD_HERE!!!"
+  device_climate_min_temp: "10 °C"
+  device_climate_max_temp: "55 °C"
+  device_climate_step_temp: "1 °C"
+  device_climate_default_temp: "20 °C"
+
+<<: !include templates/template-switch-sonoff-thr320-ds18b20.yaml

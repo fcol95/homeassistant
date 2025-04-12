@@ -24,7 +24,7 @@ Buy link: https://www.aliexpress.com/item/32847534626.html.
 4. Optional: Backup the original firmware (replace COM port!):
 	esptool -p COM8 -b 115200 read_flash 0 ALL backup.bin
 5. Build the binary with esphome and the yaml config:
-	5.1. Check "secrets.yaml" to put the WIFI SSID and password.
+	5.1. Check "secrets-example.yaml" in the top level of this repo, copy as "secrets.yaml" and fill in the info.
 	5.2. Create a device specific yaml to have a dedicated name (check plug-sonoff-s31-example.yaml as example).
 	5.3. Compile:
 	esphome compile plug-sonoff-s31-example.yaml
