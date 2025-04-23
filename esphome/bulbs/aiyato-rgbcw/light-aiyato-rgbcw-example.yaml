@@ -1,0 +1,8 @@
+substitutions:
+  device_name: "light-aiyato-rgbcw-example"
+  device_friendly_name: "Light Example"
+  device_api_encryption_key: "L79HMe383a0PEE0q8jMGagoy9zRNUhILYu9lAPsX8Ho="
+  device_ota_password: "a9909461aecaa9e69ae7f992b5a576fa"
+  light_restore_mode: RESTORE_DEFAULT_OFF
+
+<<: !include templates/template-light-aiyato-rgbcw.yaml
