@@ -13,7 +13,7 @@ Future template working with the Sonoff official THS01 ambient temperature and h
 https://github.com/esphome/issues/issues/4189#issuecomment-1468872470
 https://github.com/esphome/esphome/pull/6604
 
-# References
+## References
 This config is a mix between the THR316 and THR320D esphome configs and has been inspired by:
 - https://devices.esphome.io/devices/Sonoff-THR316
 - https://devices.esphome.io/devices/Sonoff-THR320D.
@@ -24,5 +24,5 @@ It has been modified to be use with subsitutions and templates for ease of dupli
 
 Buy link: https://www.aliexpress.com/item/1005004471550092.html - Select "Color: TH Origin 20A".
 
-# Flashing instructions with ESPtool:
+## Flashing instructions with ESPtool:
 1. TODO!
