@@ -1,9 +1,9 @@
 substitutions:
-  device_name: "switch-wall-sw-m3us-example"
+  device_name: "switch-wall-ws-b-us-3-example"
   device_friendly_name: "SwitchWallSwM3usExample"
   device_api_encryption_key: "ENTER_YOUR_BASE64_ENCRYPTION_KEY_HERE!!!"
   device_ota_password: "ENTER_YOUR_OTA_PASSWORD_HERE!!!"
   decouple: "true"
   switch_restore_mode: "RESTORE_DEFAULT_OFF"
 
-<<: !include templates/template-switch-wall-sw-m3us.yaml
+<<: !include templates/template-switch-wall-ws-b-us-3.yaml

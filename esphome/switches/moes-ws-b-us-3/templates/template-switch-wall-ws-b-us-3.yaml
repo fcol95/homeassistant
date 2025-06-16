@@ -76,7 +76,7 @@ switch:
   - platform: gpio
     name: "Relay 1"
     id: relay_1
-    pin: P6
+    pin: P24
     on_turn_on:
       - light.turn_on: led_up
     on_turn_off:
@@ -94,7 +94,7 @@ switch:
   - platform: gpio
     name: "Relay 3"
     id: relay_3
-    pin: P24
+    pin: P6
     on_turn_on:
       - light.turn_on: led_down
     on_turn_off:
@@ -104,13 +104,19 @@ switch:
 output:
   - platform: gpio
     id: led_up_out
-    pin: P20
+    pin:
+      number: P14
+      inverted: true
   - platform: gpio
     id: led_middle_out
-    pin: P8
+    pin:
+      number: P16
+      inverted: true
   - platform: gpio
     id: led_down_out
-    pin: P28
+    pin:
+      number: P20
+      inverted: true
 
 light:
   - platform: binary
@@ -131,7 +137,7 @@ binary_sensor:
     name: "Switch Up"
     id: switch_up
     pin:
-      number: P14
+      number: P23
       inverted: true
       mode:
         input: true
@@ -150,7 +156,7 @@ binary_sensor:
     name: "Switch Middle"
     id: switch_middle
     pin:
-      number: P16
+      number: P9
       inverted: true
       mode:
         input: true
@@ -169,7 +175,7 @@ binary_sensor:
     name: "Switch Down"
     id: switch_down
     pin:
-      number: P9
+      number: P28
       inverted: true
       mode:
         input: true
