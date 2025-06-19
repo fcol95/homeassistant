@@ -1,0 +1,185 @@
+esphome:
+  name: ${device_name}
+  friendly_name: ${device_friendly_name}
+
+globals:
+  - id: decouple
+    type: bool
+    restore_value: no
+    initial_value: ${decouple}
+
+bk72xx:
+  board: cbu
+  framework:
+    version: latest
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  id: api_id
+  encryption:
+    key: ${device_api_encryption_key}
+
+ota:
+  - platform: esphome
+    password: ${device_ota_password}
+
+mdns:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${device_name}
+    password: !secret fallback_hotspot_password
+
+captive_portal:
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: uptime
+    name: "Uptime"
+    id: sensor_uptime
+    update_interval: 300s
+    entity_category: "diagnostic"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: "diagnostic"
+    ssid:
+      name: "Connected SSID"
+      entity_category: "diagnostic"
+    mac_address:
+      name: "MAC Address"
+      entity_category: "diagnostic"
+
+switch:
+  - platform: gpio
+    name: "Relay 1"
+    id: relay_1
+    pin: P6
+    on_turn_on:
+      - light.turn_on: led_up
+    on_turn_off:
+      - light.turn_off: led_up
+    restore_mode: ${switch_restore_mode} # Powering the relay may cause damage or instability when the programmer is supplying Vcc, set to ALWAYS_OFF if using programmer supply!
+  - platform: gpio
+    name: "Relay 2"
+    id: relay_2
+    pin: P26
+    on_turn_on:
+      - light.turn_on: led_middle
+    on_turn_off:
+      - light.turn_off: led_middle
+    restore_mode: ${switch_restore_mode} # Powering the relay may cause damage or instability when the programmer is supplying Vcc, set to ALWAYS_OFF if using programmer supply!
+  - platform: gpio
+    name: "Relay 3"
+    id: relay_3
+    pin: P24
+    on_turn_on:
+      - light.turn_on: led_down
+    on_turn_off:
+      - light.turn_off: led_down
+    restore_mode: ${switch_restore_mode} # Powering the relay may cause damage or instability when the programmer is supplying Vcc, set to ALWAYS_OFF if using programmer supply!
+
+output:
+  - platform: gpio
+    id: led_up_out
+    pin: P20
+  - platform: gpio
+    id: led_middle_out
+    pin: P8
+  - platform: gpio
+    id: led_down_out
+    pin: P28
+
+light:
+  - platform: binary
+    name: "Led Up"
+    id: led_up
+    output: led_up_out
+  - platform: binary
+    name: "Led Middle"
+    id: led_middle
+    output: led_middle_out
+  - platform: binary
+    name: "Led Down"
+    id: led_down
+    output: led_down_out
+
+binary_sensor:
+  - platform: gpio
+    name: "Switch Up"
+    id: switch_up
+    pin:
+      number: P14
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 10ms
+    on_press:
+      if:
+        any:
+          - lambda: return id(decouple) == false;
+          - lambda: return id(api_id).is_connected() == false;
+        then:
+          - switch.turn_on: relay_1
+
+  - platform: gpio
+    name: "Switch Middle"
+    id: switch_middle
+    pin:
+      number: P16
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 10ms
+    on_press:
+      if:
+        any:
+          - lambda: return id(decouple) == false;
+          - lambda: return id(api_id).is_connected() == false;
+        then:
+          - switch.turn_off: relay_2
+
+  - platform: gpio
+    name: "Switch Down"
+    id: switch_down
+    pin:
+      number: P9
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 10ms
+    on_press:
+      if:
+        any:
+          - lambda: return id(decouple) == false;
+          - lambda: return id(api_id).is_connected() == false;
+        then:
+          - switch.turn_off: relay_3
