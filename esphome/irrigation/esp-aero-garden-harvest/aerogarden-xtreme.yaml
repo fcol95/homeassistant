@@ -1,0 +1,352 @@
+substitutions:
+# Change the disp_name to something you want  
+  disp_name: AeroGarden Xtreme
+
+esphome:
+  name: aerogarden-xtreme
+
+  includes:
+    - aeroGradenPumpPwm/pumpwm.h
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ""
+
+ota:
+  password: ""
+  on_begin:
+    then:
+      - output.turn_off: light_inverter_output
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+status_led:
+  pin: GPIO2
+
+web_server:
+  port: 80
+  auth:
+    username: !secret esphome_websrvr_user
+    password: !secret esphome_websrvr_pass
+
+globals:
+  - id: plants_planted_timestamp
+    type: uint32_t
+    restore_value: yes
+  - id: nutrients_added_timestamp
+    type: uint32_t
+    restore_value: yes
+  - id: pump_run_timer
+    type: int
+    initial_value: "1"
+    restore_value: no
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+
+display:
+  - platform: lcd_pcf8574
+    id: lcd_display
+    update_interval: 2s
+    dimensions: 20x2
+    address: 0x27
+    lambda: |-
+      int plant_age_in_days = (id(hass_time).now().timestamp - id(plants_planted_timestamp))/86400;
+      int days_ago_fed = (id(hass_time).now().timestamp - id(nutrients_added_timestamp))/86400;
+      int feed_in_days = 14 - days_ago_fed;
+      static uint8_t pageNum = 1;
+      static uint8_t redrawCounter = 0;
+      char tempStr[32];
+      switch(pageNum){
+        case 1:
+          it.print(3, 0, "AeroGarden");
+          it.print(5, 1, "Xtreme");
+          pageNum = 0; //default page.
+          break;
+        case 2:
+          // Custom page here
+          //Then bounce back to default page
+          pageNum = 0;
+          break;
+        default:
+          sprintf(tempStr, "%d", plant_age_in_days);
+          it.print(0, 1, tempStr);
+          sprintf(tempStr, "%d", feed_in_days);
+          it.print(14, 1, tempStr);
+
+          if(redrawCounter % 2 == 0 && feed_in_days <= 1){
+              it.print(2, 0, "Feed Plants!");
+          }else{
+              id(hass_time).now().strftime(tempStr, sizeof(tempStr), "%I:%M %p");
+              it.print(4, 0, tempStr);
+          }
+
+          id(hass_time).now().strftime(tempStr, sizeof(tempStr), "%D");
+          it.print(4, 1, tempStr);
+          break;
+      }
+      redrawCounter++;
+
+sun:
+  latitude: 30.301131°
+  longitude: -81.700244°
+  id: hass_sun
+
+#There are:
+#1036800 seconds in 12 days
+#1209600 seconds in 14 days
+#
+#Timer for pump & feeding schedule
+time:
+  - platform: homeassistant
+    id: hass_time
+    on_time:
+      # Every 1 minutes
+      - minutes: /1
+        seconds: 0
+        then:
+          - lambda: |-
+              char timeStr[32];
+              static bool pump_desired_state = false;
+              int days_ago_fed = (id(hass_time).now().timestamp - id(nutrients_added_timestamp))/86400;
+              int feed_in_days = 14 - days_ago_fed;
+              if(feed_in_days<0){feed_in_days=0;}
+              id(hass_time).now().strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M");
+              ESP_LOGD("TIME", "Time is now %s", timeStr); 
+              ESP_LOGD("TIME", "(Timestamp = %lu)", id(hass_time).now().timestamp); 
+              //
+              //Plant feeding schedule check
+              //
+              ESP_LOGI("FEED_TIMER", "Plants were fed %d days ago and will need to be fed in %d days.", days_ago_fed, feed_in_days);
+              auto call = id(status_light).turn_on();
+              call.set_transition_length(0);
+              if(feed_in_days < 1){
+                //light plant light red
+                call.set_rgb(1.0, 0.0, 0.0);
+              }else if(feed_in_days <= 2){
+                //light plant light yellow
+                call.set_rgb(1.0, 1.0, 0.0);
+              }else{
+                //light plany light green
+                call.set_rgb(0.0, 1.0, 0.0);
+              }
+              call.set_brightness(0.8); //75%
+              call.perform();
+
+              //
+              //Pump run timer
+              //
+              id(pump_run_timer)--;
+              if(id(pump_run_timer)<=0){
+                if(pump_desired_state){
+                  ESP_LOGD("WATER_PUMP", "Turned off.");
+                  pump_desired_state = false;
+                  id(pump_run_timer) = 58;
+                }else{
+                  ESP_LOGD("WATER_PUMP", "Turned on.");
+                  pump_desired_state = true;
+                  id(pump_run_timer) = 2;
+                }
+              }
+
+
+              //
+              //Light Control
+              //
+              //Call the inverter output before
+
+              auto hourNow = id(hass_time).now().hour;
+              ESP_LOGD("SUN", "Eleveation is %f", id(hass_sun).elevation());
+              if(pump_desired_state){
+                id(grow_light_switch).turn_off();
+              }else if(id(hass_sun).elevation() > 0.0 ){
+                id(grow_light_switch).turn_on();
+              }else if(hourNow>15 && hourNow<19){
+                auto glc = id(grow_light).turn_on();
+                glc.set_brightness(0.3);
+                glc.perform();
+              }else{
+                id(grow_light_switch).turn_off();
+              }
+
+              //
+              //Pump run control - Lights to turn off if pump needs to run. Something to do with the PWM Channels. Need to Fix
+              //
+              if(pump_desired_state){
+                id(pump_output).turn_on();
+              }else{
+                id(pump_output).turn_off();
+              }
+              ESP_LOGI("WATER_PUMP", "Cycle change in %d minutes.", id(pump_run_timer));
+
+              //
+              //Plant Age Indicator
+              //
+              int plant_age_in_days = (id(hass_time).now().timestamp - id(plants_planted_timestamp))/86400;
+              time_t plantEpoch = id(plants_planted_timestamp);
+              auto plantDate = ESPTime::from_epoch_local(plantEpoch);
+              plantDate.strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M");
+              ESP_LOGI("PLANT_AGE", "Plants were planted on %s", timeStr); 
+              ESP_LOGI("PLANT_AGE", "Plants are %d days old.", plant_age_in_days);
+
+              printf("___________________________________________________________________________");
+
+
+#Virtual Buttons
+button:
+  - platform: template
+    id: record_nutrients_added
+    name: "Nutrients Added"
+    on_press:
+      then:
+        lambda: id(nutrients_added_timestamp) = id(hass_time).now().timestamp;
+  - platform: template
+    id: record_plants_planted
+    name: "Plants Planted"
+    on_press:
+      then:
+        lambda: id(plants_planted_timestamp) = id(hass_time).now().timestamp; //First planting was 1676775420
+
+  - platform: restart
+    name: ${disp_name} Restart
+
+# Touch Buttons
+esp32_touch:
+  setup_mode: false
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO25
+      mode:
+        input: true
+        pullup: true
+    name: "Water Level"
+
+# Light Entity
+light:
+  - platform: monochromatic
+    id: grow_light
+    # internal: true
+    name: "Grow Light"
+    output: grow_light_pwm
+    default_transition_length: 5s
+    restore_mode: ALWAYS_OFF      #Keep this so that it doesn't turn on at boot in case there is an issue.
+  - platform: neopixelbus
+    type: GRB
+    id: status_light
+    variant: 800KBPS
+    pin: GPIO23
+    num_leds: 1
+    name: "Status Light"
+
+#pin 17 is to the MOS PWM switch, I don't think it's needed.
+#pin 16 is to the inverter.
+#I swapped these outputs in the code below.
+output:
+  #Light Inverter Power
+  - id: light_inverter_output
+    platform: gpio
+    pin: GPIO17
+  # PWM Control for Lights
+  - platform: ledc
+    id: grow_light_pwm
+    pin: GPIO16
+    frequency: "120Hz"
+
+  # Pump PWM Control (60hz 50% Opposing)  
+  - platform: custom
+    type: binary
+    lambda: |-
+      auto pump_pwm = new AeroGardenPumpOutput();
+      App.register_component(pump_pwm);
+      return {pump_pwm};
+    outputs:
+      id: pump_pwm
+
+# custom_component:
+#   - lambda: |-
+#       auto pump_pwm = new AeroGardenPumpOutput();
+#       return {pump_pwm};
+#     components:
+#     - id: pump_pwm
+
+        
+#See this https://github.com/Dlloydev/ESP32-ESP32S2-AnalogWrite
+  #60hz pump signal
+#   - platform: ledc
+#     id: motor_pwm_hplus
+#     frequency: "60Hz"
+#     channel: 2
+#     pin: GPIO32
+#   - platform: ledc
+#     id: motor_pwm_hneg
+#     frequency: "60Hz"
+#     channel: 3
+#     pin:
+#       number: GPIO33
+#       inverted: true
+
+switch:
+  - platform: output
+    id: pump_output
+    restore_mode: DISABLED
+    name: "Water Pump"
+    output: pump_pwm
+  - platform: output
+    id: grow_light_switch
+    output: light_inverter_output
+    restore_mode: ALWAYS_OFF      #Keep this so that it doesn't turn on at boot in case there is an issue.
+    name: "Grow Light"
+    on_turn_on:
+      then:
+        - delay: 1s
+        - light.turn_on: 
+            brightness: 65%
+            id: grow_light
+    on_turn_off:
+        - output.turn_off: light_inverter_output
+        - light.turn_off: grow_light
+
+sensor:
+  - platform: uptime
+    id: uptime_sensor
+    internal: true
+    name: ${disp_name} Uptime
+    update_interval: 30s
+    on_raw_value:
+      then:
+        - text_sensor.template.publish:
+            id: uptime_human
+            state: !lambda |-
+              int seconds = round(id(uptime_sensor).raw_state);
+              int days = seconds / (24 * 3600);
+              seconds = seconds % (24 * 3600);
+              int hours = seconds / 3600;
+              seconds = seconds % 3600;
+              int minutes = seconds /  60;
+              seconds = seconds % 60;
+              return (
+                (days ? to_string(days) + "d " : "") +
+                (hours ? to_string(hours) + "h " : "") +
+                (minutes ? to_string(minutes) + "m " : "") //+
+                //(to_string(seconds) + "s")
+              ).c_str();
+
+text_sensor:
+  - platform: template
+    name: ${disp_name} Uptime Human Readable
+    id: uptime_human
+    icon: mdi:clock-start
