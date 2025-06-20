@@ -1,0 +1,131 @@
+esphome:
+  name: pow-meter-pc311-water-heater
+  friendly_name: PowMeterPC311WaterHeater
+  on_boot:
+    priority: 600
+    then:
+      - output.turn_on: HLW8112_SCLK
+      - output.turn_on: HLW8112_SCSN
+      - output.turn_on: ZB25VQ80_SCSN
+
+# NOTE: Original board config
+# rtl87xx:
+#   board: generic-rtl8720cf-2mb-992k
+#   framework:
+#     version: 0.0.0
+#     source: https://github.com/prokoma/libretiny#55aacc8 # Temporary Fix for RTL8720CF OTA!
+
+esp8266:
+  board: esp12e
+  restore_from_flash: true
+  framework:
+    version: latest
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "Dd5xgHZVrEt3Mof9An0QSMP82eGLoSZBbBDl1y55iVc="
+
+ota:
+  - platform: esphome
+    password: "a3f292d74cbf47605f93589aa5f114d5"
+
+mdns:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${device_name}
+    password: !secret fallback_hotspot_password
+
+captive_portal:
+
+uart: # Ensure modif is done on R3 to pull down SPIEN! (SPI unsupported yet for rtl8720cf)
+  - id: hlw8112_uart
+    tx_pin: GPIO14 # GPIO1 SDO/TX of HLW8112 - Original board rtl8720cf pin PA2
+    rx_pin: GPIO12 # SDI/RX of HLW8112 - Original board rtl8720cf pin PA3
+    baud_rate: 38400 # NOTE: Ensure SCLK (PA4) and SCSN (PA7) are high.
+    data_bits: 8
+    stop_bits: 1
+    parity: EVEN # TODO: Check if not ODD?
+
+# Enable Logging
+logger:
+  level: DEBUG
+  baud_rate: 115200
+
+output:
+  - platform: gpio
+    id: HLW8112_SCLK
+    pin: GPIO13 # Original board rtl8720cf pin PA4
+  - platform: gpio
+    id: HLW8112_SCSN
+    pin: GPIO15 # Original board rtl8720cf pin PA7
+  - platform: gpio
+    id: ZB25VQ80_SCSN
+    pin: GPIO16 # Original board rtl8720cf pin PA11
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/fcol95/esphome
+      ref: hlw8112
+    components: [hlw8112]
+
+sensor:
+  - platform: hlw8112
+    voltage:
+      name: HLW8112 Voltage
+    current_1:
+      name: HLW8112 Current 1
+    current_2:
+      name: HLW8112 Current 2
+    active_power_1:
+      name: HLW8112 Active Power 1
+    active_power_2:
+      name: HLW8112 Active Power 2
+    energy_1:
+      name: HLW8112 Energy 1
+    energy_2:
+      name: HLW8112 Energy 2
+    energy_total:
+      name: HLW8112 Total energy
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: uptime
+    name: "Uptime"
+    id: sensor_uptime
+    update_interval: 300s
+    entity_category: "diagnostic"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: "diagnostic"
+    ssid:
+      name: "Connected SSID"
+      entity_category: "diagnostic"
+    mac_address:
+      name: "MAC Address"
+      entity_category: "diagnostic"
+
+switch:
+  - platform: restart
+    name: Restart
