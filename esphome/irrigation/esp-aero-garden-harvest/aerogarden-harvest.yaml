@@ -1,0 +1,148 @@
+esphome:
+  name: aerogarden-harvest
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: latest
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+mdns:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${device_name}
+    password: !secret fallback_hotspot_password
+
+captive_portal:
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: uptime
+    name: "Uptime"
+    id: sensor_uptime
+    update_interval: 300s
+    entity_category: "diagnostic"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: "diagnostic"
+    ssid:
+      name: "Connected SSID"
+      entity_category: "diagnostic"
+    mac_address:
+      name: "MAC Address"
+      entity_category: "diagnostic"
+
+# Touch Pad Sensor for capacity buttons on front
+esp32_touch:
+  setup_mode: false
+
+# NOTE: Could replace ESP32 Touch for reading capacitive touch buttons with I2C comm with secondary MCU?
+# PDA -> Clock (IC2 Pin #5), PCK -> Data (IC2 Pin #6).
+# Slave Address: 0x50.
+# Sequence: Start. Write byte 0x0. ACK. Read byte. NAK. Stop
+# If byte is 0, idle, if bit 2 is 1, lamp button is pressed. If bit 0 is 1, food button is pressed.
+# CLK ~7kHz. Data on rising edge. Polling every 10ms.
+
+binary_sensor:
+  - platform: esp32_touch
+    name: "Button Plant Food"
+    id: button_food
+    pin: GPIO4
+    threshold: 450
+  - platform: esp32_touch
+    name: "Button Plant Lamp"
+    id: button_lamp
+    pin: GPIO14
+    threshold: 450
+  - platform: gpio
+    pin:
+      number: GPIO32
+      mode:
+        input: true
+        pullup: true
+    name: "Water Switch"
+    id: water_switch
+
+output:
+  - platform: gpio
+    id: out_led_food_low
+    pin: GPIO26 # R1 Resistor
+  - platform: gpio
+    id: out_led_food_high
+    pin: GPIO33 # R10 Resistor
+  - platform: gpio
+    id: out_led_water_low
+    pin: GPIO16 # R2 Resistor
+  - platform: gpio
+    id: out_led_water_high
+    pin: GPIO17 # R11 Resistor
+  - platform: gpio
+    id: out_led_plant_lamp_state
+    pin: GPIO18 # R3 Resistor
+  - platform: ledc
+    id: out_plant_lamp # Check if 3.3V out is enough for driving this.
+    pin: GPIO5 # CN1 pin 5 (- symbol wire)
+    frequency: "1000Hz" # 120Hz Initial
+
+light:
+  - platform: binary
+    name: "Led Plant Food Low"
+    id: led_food_low
+    output: out_led_food_low
+  - platform: binary
+    name: "Led Plant Food High"
+    id: led_food_high
+    output: out_led_food_high
+  - platform: binary
+    name: "Led Water Low"
+    id: led_water_low
+    output: out_led_water_low
+  - platform: binary
+    name: "Led Water High"
+    id: led_water_high
+    output: out_led_water_high
+  - platform: binary
+    name: "Led Plant Lamp State"
+    id: led_plant_lamp_state
+    output: out_led_plant_lamp_state
+  - platform: monochromatic # TODO: Check if ok to dim or use binary!
+    id: plant_lamp
+    name: "Plant Lamp"
+    output: out_plant_lamp
+    default_transition_length: 5s
+    restore_mode: ALWAYS_OFF #Keep this so that it doesn't turn on at boot in case there is an issue.
+
+# TODO: Pump output - Try LEDC output for PWM control with 60Hz and phase angle to have both H+ and H- pin shifted by half a phase?
+# https://esphome.io/components/output/ledc.html
