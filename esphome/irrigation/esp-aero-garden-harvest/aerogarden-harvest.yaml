@@ -64,10 +64,6 @@ text_sensor:
       name: "MAC Address"
       entity_category: "diagnostic"
 
-# Touch Pad Sensor for capacity buttons on front
-esp32_touch:
-  setup_mode: false
-
 # NOTE: AeroGarden Harvest Touch/Capacity Buttons are read by a secondary MCU with touch input that communicates over I2C.
 # PDA -> Clock (Control Board Connector C2 Pin #5), PCK -> Data (Control Board Connector C2 Pin #6).
 # Slave Address: 0x50.
