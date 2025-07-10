@@ -123,7 +123,46 @@ output:
   - platform: ledc
     id: out_plant_lamp # Check if 3.3V out is enough for driving this.
     pin: GPIO5 # CN1 pin 5 (- symbol wire)
-    frequency: "1000Hz" # 120Hz Initial
+    frequency: 1000Hz # 120Hz from Aerogarden Extrem Config. 1kHz seems to have less flicker
+    channel: 2
+  - platform: ledc
+    id: out_pump_h_plus
+    pin: GPIO19
+    frequency: 60Hz
+    channel: 0
+    phase_angle: 0.0
+    zero_means_zero: true
+  - platform: ledc
+    id: out_pump_h_minus
+    pin: GPIO21
+    frequency: 60Hz
+    channel: 1
+    phase_angle: 180.0
+    zero_means_zero: true
+
+switch:
+  - platform: template
+    name: "Water Pump"
+    id: water_pump
+    restore_mode: DISABLED
+    assumed_state: true 
+    optimistic: true
+    turn_on_action:
+    # TODO: Check if this could use "- output.turn_on: out_pump_h_X" instead?
+      - output.set_level: 
+          id: out_pump_h_plus
+          level: 100%
+      - output.set_level:
+          id: out_pump_h_minus
+          level: 100%
+    turn_off_action:
+    # TODO: Check if this could use "- output.turn_off: out_pump_h_X" instead?
+      - output.set_level:
+          id: out_pump_h_plus
+          level: 0%
+      - output.set_level:
+          id: out_pump_h_minus
+          level: 0%
 
 light:
   - platform: binary
@@ -153,5 +192,5 @@ light:
     default_transition_length: 5s
     restore_mode: ALWAYS_OFF #Keep this so that it doesn't turn on at boot in case there is an issue.
 
-# TODO: Pump output - Try LEDC output for PWM control with 60Hz and phase angle to have both H+ and H- pin shifted by half a phase?
-# https://esphome.io/components/output/ledc.html
+# TODO: Create a sprinkler component to control the water pump periodically instead of with time interval??
+# https://esphome.io/components/sprinkler.html
