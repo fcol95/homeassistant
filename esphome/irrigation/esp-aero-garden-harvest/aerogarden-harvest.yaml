@@ -129,14 +129,14 @@ output:
     id: out_pump_h_plus
     pin: GPIO19
     frequency: 60Hz
-    channel: 0
+    channel: 0 # Need to be the even adjacent to H- channel for phase control!
     phase_angle: 0.0
     zero_means_zero: true
   - platform: ledc
     id: out_pump_h_minus
     pin: GPIO21
     frequency: 60Hz
-    channel: 1
+    channel: 1 # Need to be the odd adjacent to H+ channel for phase control!
     phase_angle: 180.0
     zero_means_zero: true
 
@@ -145,24 +145,28 @@ switch:
     name: "Water Pump"
     id: water_pump
     restore_mode: DISABLED
-    assumed_state: true 
+    assumed_state: true
     optimistic: true
     turn_on_action:
-    # TODO: Check if this could use "- output.turn_on: out_pump_h_X" instead?
-      - output.set_level: 
+      # TODO: Check if this could use "- output.turn_on: out_pump_h_X" instead?
+      - output.turn_on: out_pump_h_plus
+      - output.turn_on: out_pump_h_minus
+      - output.set_level:
           id: out_pump_h_plus
-          level: 100%
+          level: 50%
       - output.set_level:
           id: out_pump_h_minus
-          level: 100%
+          level: 50%
     turn_off_action:
-    # TODO: Check if this could use "- output.turn_off: out_pump_h_X" instead?
+      # TODO: Check if this could use "- output.turn_off: out_pump_h_X" instead?
       - output.set_level:
           id: out_pump_h_plus
           level: 0%
       - output.set_level:
           id: out_pump_h_minus
           level: 0%
+      - output.turn_off: out_pump_h_plus
+      - output.turn_off: out_pump_h_minus
 
 light:
   - platform: binary
