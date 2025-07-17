@@ -62,9 +62,9 @@ time:
     id: hass_time
     on_time:
       # Pump Cycle as per the original AeroGarden Harvest schedule.
-      # Every 25 minutes activate the pump for 5min.
+      # Every 30 minutes activate the pump for 5min (25min off, 5min on!).
       - seconds: 0
-        minutes: /25
+        minutes: /30
         then:
           - if:
               condition:
@@ -205,8 +205,8 @@ binary_sensor:
     name: "Button Plant Food"
     id: button_food
     on_click:
-      - min_length: 1000ms
-        max_length: 5000ms
+      - min_length: 3000ms
+        max_length: 10000ms
         then:
           - logger.log: "Plant Food Button Long Press!"
           - lambda: |-
@@ -216,10 +216,14 @@ binary_sensor:
     name: "Button Plant Lamp"
     id: button_lamp
     on_click:
-      - min_length: 1000ms
-        max_length: 5000ms
+      - min_length: 3000ms
+        max_length: 10000ms
         then:
           - logger.log: "Plant Lamp Button Long Press!"
+      - min_length: 100ms
+        max_length: 1000ms
+        then:
+          - logger.log: "Plant Lamp Button Short Press!"
           - light.toggle: plant_lamp
 
   - platform: gpio
