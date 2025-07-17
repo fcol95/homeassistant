@@ -46,11 +46,28 @@ time:
   - platform: homeassistant
     id: homeassistant_time
     on_time:
+      # Pump Cycle as per the original AeroGarden Harvest schedule.
       # Every 25 minutes
       - seconds: 0
         minutes: /25
         then:
-          - sprinkler.start_full_cycle: irrigation_ctrlr
+          - if:
+              condition:
+                binary_sensor.is_on: water_present_switch
+              then:
+                - sprinkler.start_full_cycle: irrigation_ctrlr
+              else:
+                - logger.log: "Skipping pump cycle - no water detected!"
+      # Food Cycle as per the original AeroGarden Harvest schedule.
+      # Every 14 days (starting at 1st of the month)
+      # TODO: This interval needs to start at the reset of food refill not the 1st of the month!!!
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        days_of_month: 1/14
+        then:
+          - lambda: |-
+              id(food_missing).publish_state(true); // Set food missing state!
 
 sensor:
   - platform: wifi_signal
@@ -120,6 +137,16 @@ interval:
       # TODO: Run this only once?
       - wifi.enable:
 
+button:
+  - platform: template
+    name: "Reset Plant Food"
+    id: button_reset_food
+    icon: "mdi:leaf"
+    on_press:
+      - logger.log: "Plant Food Reset Requested!"
+      - lambda: |-
+          id(food_missing).publish_state(false); // Reset food missing state!
+        
 binary_sensor:
 # TODO: Add filters for button presses to avoid false positives?
   - platform: template
@@ -131,6 +158,8 @@ binary_sensor:
         max_length: 5000ms
         then:
           - logger.log: "Plant Food Button Long Press!"
+          - lambda: |-
+              id(food_missing).publish_state(false); // Reset food missing state!
 
   - platform: template
     name: "Button Plant Lamp"
@@ -158,9 +187,26 @@ binary_sensor:
         - light.turn_on: led_water_high
     on_release:
       then:
+        - sprinkler.shutdown: irrigation_ctrlr # Stop the pump if water is low!
         - logger.log: "Water Low!"
         - light.turn_off: led_water_high
         - light.turn_on: led_water_low
+
+  - platform: template
+    name: "Food Missing"
+    id: food_missing
+    device_class: problem
+    icon: "mdi:leaf-off"
+    on_press:
+      then:
+        - logger.log: "Food Missing!"
+        - light.turn_off: led_food_high
+        - light.turn_on: led_food_low
+    on_release:
+      then:
+        - logger.log: "Food Present!"
+        - light.turn_off: led_food_low
+        - light.turn_on: led_food_high
 
 output:
   - platform: gpio
