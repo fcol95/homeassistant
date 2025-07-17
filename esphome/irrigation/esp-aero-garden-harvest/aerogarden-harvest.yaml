@@ -1,6 +1,20 @@
 esphome:
   name: aerogarden-harvest
   friendly_name: aerogarden-harvest
+  on_boot:
+    priority: -100
+    then:
+      - logger.log: "AeroGarden Harvest booted!"
+      - if:
+          condition:
+            lambda: |-
+              return ((id(hass_time).now().timestamp - id(last_food_added_datetime).state_as_esptime().timestamp) >= 14*24*60*60); // 14 days in seconds
+          then:
+            - lambda: |-
+                id(food_missing).publish_state(true); // Set food missing state!
+          else:
+            - lambda: |-
+                id(food_missing).publish_state(false); // Clear food missing state!
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -43,14 +57,6 @@ wifi:
 
 captive_portal:
 
-globals:
-  - id: plants_planted_timestamp
-    type: uint32_t
-    restore_value: yes
-  - id: food_added_timestamp
-    type: uint32_t
-    restore_value: yes
-
 time:
   - platform: homeassistant
     id: hass_time
@@ -68,16 +74,15 @@ time:
               else:
                 - logger.log: "Skipping pump cycle - no water detected!"
       # Food Cycle as per the original AeroGarden Harvest schedule.
-      # Every 14 days after reset. Checking every day!
+      # Every 14 days after reset. Checking every half day!
       - seconds: 0
         minutes: 0
-        hours: 0
-        days_of_month: 1/1
+        hours: /12
         then:
           - if:
               condition:
                 lambda: |-
-                  return (!!!id(food_missing).state && (id(hass_time).now().timestamp - id(food_added_timestamp)) >= 14*24*60*60); // 14 days in seconds
+                  return (!!!id(food_missing).state && (id(hass_time).now().timestamp - id(last_food_added_datetime).state_as_esptime().timestamp) >= 14*24*60*60); // 14 days in seconds
               then:
                 - lambda: |-
                     id(food_missing).publish_state(true); // Set food missing state!
@@ -94,40 +99,6 @@ sensor:
     type: seconds
     update_interval: 60s
     entity_category: "diagnostic"
-    on_raw_value:
-      then:
-        - text_sensor.template.publish:
-            id: last_food_added_datetime
-            state: !lambda |-
-              int seconds = (id(hass_time).now().timestamp - id(food_added_timestamp));
-              int days = seconds / (24 * 60 * 60);
-              seconds = seconds % (24 * 60 * 60);
-              int hours = seconds / 60 * 60;
-              seconds = seconds % 60 * 60;
-              int minutes = seconds /  60;
-              seconds = seconds % 60;
-              return (
-                (days ? to_string(days) + "d " : "") +
-                (hours ? to_string(hours) + "h " : "") +
-                (minutes ? to_string(minutes) + "m " : "") +
-                (to_string(seconds) + "s")
-              ).c_str();
-        - text_sensor.template.publish:
-            id: last_planted_datetime
-            state: !lambda |-
-              int seconds = (id(hass_time).now().timestamp - id(plants_planted_timestamp));
-              int days = seconds / (24 * 60 * 60);
-              seconds = seconds % (24 * 60 * 60);
-              int hours = seconds / 60 * 60;
-              seconds = seconds % 60 * 60;
-              int minutes = seconds /  60;
-              seconds = seconds % 60;
-              return (
-                (days ? to_string(days) + "d " : "") +
-                (hours ? to_string(hours) + "h " : "") +
-                (minutes ? to_string(minutes) + "m " : "") +
-                (to_string(seconds) + "s")
-              ).c_str();
 
   - platform: uptime
     id: uptime_timestamp
@@ -151,14 +122,25 @@ text_sensor:
   - platform: sun
     name: Sun Next Sunset
     type: sunset
+
+datetime:
   - platform: template
+    type: datetime
     name: "Last Food Added"
     id: last_food_added_datetime
     icon: "mdi:cookie-clock-outline"
+    time_id: hass_time
+    restore_value: true
+    optimistic: true
+
   - platform: template
+    type: datetime
     name: "Last Planted"
     id: last_planted_datetime
     icon: "mdi:sort-clock-descending-outline"
+    time_id: hass_time
+    restore_value: true
+    optimistic: true
 
 # NOTE: AeroGarden Harvest Touch/Capacity Buttons are read by a secondary MCU with touch input that communicates over I2C.
 # PDA -> Clock (Control Board Connector P1 Pin #5), PCK -> Data (Control Board Connector P1 Pin #6).
@@ -199,8 +181,11 @@ button:
     icon: "mdi:sprout"
     on_press:
       - logger.log: "Plant Planted Reset Requested!"
-      - lambda: |-
-          id(plants_planted_timestamp)= id(hass_time).now().timestamp; // Reset plants planted timestamp
+      - datetime.datetime.set:
+          id: last_planted_datetime
+          datetime: !lambda |-
+            return id(hass_time).now(); // Reset last planted datetime to now!
+
   - platform: template
     name: "Reset Plant Food"
     id: button_reset_food
@@ -209,9 +194,9 @@ button:
       - logger.log: "Plant Food Reset Requested!"
       - lambda: |-
           id(food_missing).publish_state(false); // Reset food missing state!
-        
+
 binary_sensor:
-# TODO: Add filters for button presses to avoid false positives?
+  # TODO: Add filters for button presses to avoid false positives?
   - platform: template
     name: "Button Plant Food"
     id: button_food
@@ -269,9 +254,10 @@ binary_sensor:
         - logger.log: "Food Present!"
         - light.turn_off: led_food_low
         - light.turn_on: led_food_high
-        - lambda: |-
-            id(food_added_timestamp)= id(hass_time).now().timestamp; // Reset food added timestamp
-
+        - datetime.datetime.set:
+            id: last_food_added_datetime
+            datetime: !lambda |-
+              return id(hass_time).now(); // Reset last food added datetime to now!
 
 output:
   - platform: gpio
@@ -337,7 +323,7 @@ switch:
       - output.turn_off: out_pump_h_minus
 
 light:
-# Front Panel LEDs (Internally Controlled)
+  # Front Panel LEDs (Internally Controlled)
   - platform: binary
     name: "Led Plant Food Low"
     id: led_food_low
@@ -369,7 +355,7 @@ light:
     restore_mode: ALWAYS_OFF
     internal: true
 
-# Main Plant Lamp
+  # Main Plant Lamp
   - platform: monochromatic
     id: plant_lamp
     name: "Plant Lamp"
@@ -402,4 +388,4 @@ sprinkler:
     valves:
       - valve_switch: "Plant Water"
         run_duration: 300s
-        valve_switch_id : water_pump
+        valve_switch_id: water_pump
