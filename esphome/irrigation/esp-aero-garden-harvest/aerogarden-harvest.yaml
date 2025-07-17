@@ -28,6 +28,7 @@ web_server:
     password: !secret web_server_password
 
 wifi:
+  enable_on_boot: false # Needed to not draw too much power on boot.
   networks:
     - ssid: !secret main_wifi_ssid
       password: !secret main_wifi_password
@@ -41,6 +42,10 @@ wifi:
 
 captive_portal:
 
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
 sensor:
   - platform: wifi_signal
     name: "WiFi Signal"
@@ -50,8 +55,14 @@ sensor:
   - platform: uptime
     name: "Uptime"
     id: sensor_uptime
+    type: seconds
     update_interval: 300s
     entity_category: "diagnostic"
+
+  - platform: uptime
+    id: uptime_timestamp
+    type: timestamp
+    internal: true
 
 text_sensor:
   - platform: wifi_info
@@ -83,11 +94,19 @@ i2c_device:
 
 interval:
   - interval: 10ms
+    startup_delay: 1s # Wait for the secondary MCU to boot up.
+    id: i2c_comm_interval
     then:
       - lambda: |-
           auto b = id(i2c_touch_mcu).read_byte(0x50);
           id(button_lamp).publish_state(b.value() & 0b00000100); // Lamp button state
           id(button_food).publish_state(b.value() & 0b00000001); // Food button state
+  - interval: 1s
+    startup_delay: 2s # Wait for the secondary MCU to boot up.
+    id: wifi_check_interval
+    then:
+      # TODO: Run this only once?
+      - wifi.enable:
 
 binary_sensor:
   - platform: template
@@ -175,28 +194,32 @@ light:
     name: "Led Plant Food Low"
     id: led_food_low
     output: out_led_food_low
+    restore_mode: ALWAYS_OFF
   - platform: binary
     name: "Led Plant Food High"
     id: led_food_high
     output: out_led_food_high
+    restore_mode: ALWAYS_OFF
   - platform: binary
     name: "Led Water Low"
     id: led_water_low
     output: out_led_water_low
+    restore_mode: ALWAYS_OFF
   - platform: binary
     name: "Led Water High"
     id: led_water_high
     output: out_led_water_high
+    restore_mode: ALWAYS_OFF
   - platform: binary
     name: "Led Plant Lamp State"
     id: led_plant_lamp_state
     output: out_led_plant_lamp_state
-  - platform: monochromatic # TODO: Check if ok to dim or use binary!
+    restore_mode: ALWAYS_OFF
+  - platform: monochromatic
     id: plant_lamp
     name: "Plant Lamp"
     output: out_plant_lamp
     default_transition_length: 5s
-    restore_mode: ALWAYS_OFF #Keep this so that it doesn't turn on at boot in case there is an issue.
-
+    restore_mode: ALWAYS_OFF
 # TODO: Create a sprinkler component to control the water pump periodically instead of with time interval??
 # https://esphome.io/components/sprinkler.html
