@@ -102,8 +102,9 @@ binary_sensor:
       mode:
         input: true
         pullup: true
-    name: "Water Switch"
-    id: water_switch
+      inverted: true
+    name: "Water Low Switch"
+    id: water_low_switch
 
 output:
   - platform: gpio
