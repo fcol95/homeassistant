@@ -322,6 +322,10 @@ switch:
       - output.turn_off: out_pump_h_plus
       - output.turn_off: out_pump_h_minus
 
+  - platform: restart
+    name: Restart
+    entity_category: "diagnostic"
+
 light:
   # Front Panel LEDs (Internally Controlled)
   - platform: binary
