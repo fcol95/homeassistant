@@ -94,6 +94,40 @@ sensor:
     type: seconds
     update_interval: 60s
     entity_category: "diagnostic"
+    on_raw_value:
+      then:
+        - text_sensor.template.publish:
+            id: last_food_added_datetime
+            state: !lambda |-
+              int seconds = id(food_added_timestamp);
+              int days = seconds / (24 * 60 * 60);
+              seconds = seconds % (24 * 60 * 60);
+              int hours = seconds / 60 * 60;
+              seconds = seconds % 60 * 60;
+              int minutes = seconds /  60;
+              seconds = seconds % 60;
+              return (
+                (days ? to_string(days) + "d " : "") +
+                (hours ? to_string(hours) + "h " : "") +
+                (minutes ? to_string(minutes) + "m " : "") //+
+                //(to_string(seconds) + "s")
+              ).c_str();
+        - text_sensor.template.publish:
+            id: last_planted_datetime
+            state: !lambda |-
+              int seconds = id(plants_planted_timestamp);
+              int days = seconds / (24 * 60 * 60);
+              seconds = seconds % (24 * 60 * 60);
+              int hours = seconds / 60 * 60;
+              seconds = seconds % 60 * 60;
+              int minutes = seconds /  60;
+              seconds = seconds % 60;
+              return (
+                (days ? to_string(days) + "d " : "") +
+                (hours ? to_string(hours) + "h " : "") +
+                (minutes ? to_string(minutes) + "m " : "") //+
+                //(to_string(seconds) + "s")
+              ).c_str();
 
   - platform: uptime
     id: uptime_timestamp
@@ -117,6 +151,14 @@ text_sensor:
   - platform: sun
     name: Sun Next Sunset
     type: sunset
+  - platform: template
+    name: "Last Food Added"
+    id: last_food_added_datetime
+    icon: "mdi:cookie-clock-outline"
+  - platform: template
+    name: "Last Planted"
+    id: last_planted_datetime
+    icon: "mdi:sort-clock-descending-outline"
 
 # NOTE: AeroGarden Harvest Touch/Capacity Buttons are read by a secondary MCU with touch input that communicates over I2C.
 # PDA -> Clock (Control Board Connector P1 Pin #5), PCK -> Data (Control Board Connector P1 Pin #6).
