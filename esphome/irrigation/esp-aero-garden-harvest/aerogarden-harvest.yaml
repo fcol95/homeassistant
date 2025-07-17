@@ -99,7 +99,7 @@ sensor:
         - text_sensor.template.publish:
             id: last_food_added_datetime
             state: !lambda |-
-              int seconds = id(food_added_timestamp);
+              int seconds = (id(hass_time).now().timestamp - id(food_added_timestamp));
               int days = seconds / (24 * 60 * 60);
               seconds = seconds % (24 * 60 * 60);
               int hours = seconds / 60 * 60;
@@ -115,7 +115,7 @@ sensor:
         - text_sensor.template.publish:
             id: last_planted_datetime
             state: !lambda |-
-              int seconds = id(plants_planted_timestamp);
+              int seconds = (id(hass_time).now().timestamp - id(plants_planted_timestamp));
               int days = seconds / (24 * 60 * 60);
               seconds = seconds % (24 * 60 * 60);
               int hours = seconds / 60 * 60;
