@@ -45,6 +45,12 @@ captive_portal:
 time:
   - platform: homeassistant
     id: homeassistant_time
+    on_time:
+      # Every 25 minutes
+      - seconds: 0
+        minutes: /25
+        then:
+          - sprinkler.start_full_cycle: irrigation_ctrlr
 
 sensor:
   - platform: wifi_signal
@@ -56,7 +62,7 @@ sensor:
     name: "Uptime"
     id: sensor_uptime
     type: seconds
-    update_interval: 300s
+    update_interval: 60s
     entity_category: "diagnostic"
 
   - platform: uptime
@@ -75,6 +81,12 @@ text_sensor:
     mac_address:
       name: "MAC Address"
       entity_category: "diagnostic"
+  - platform: sun
+    name: Sun Next Sunrise
+    type: sunrise
+  - platform: sun
+    name: Sun Next Sunset
+    type: sunset
 
 # NOTE: AeroGarden Harvest Touch/Capacity Buttons are read by a secondary MCU with touch input that communicates over I2C.
 # PDA -> Clock (Control Board Connector P1 Pin #5), PCK -> Data (Control Board Connector P1 Pin #6).
@@ -95,7 +107,7 @@ i2c_device:
 interval:
   - interval: 10ms
     startup_delay: 1s # Wait for the secondary MCU to boot up.
-    id: i2c_comm_interval
+    id: interval_i2c_comm
     then:
       - lambda: |-
           auto b = id(i2c_touch_mcu).read_byte(0x50);
@@ -103,27 +115,52 @@ interval:
           id(button_food).publish_state(b.value() & 0b00000001); // Food button state
   - interval: 1s
     startup_delay: 2s # Wait for the secondary MCU to boot up.
-    id: wifi_check_interval
+    id: interval_wifi_check
     then:
       # TODO: Run this only once?
       - wifi.enable:
 
 binary_sensor:
+# TODO: Add filters for button presses to avoid false positives?
   - platform: template
     name: "Button Plant Food"
     id: button_food
+    # TODO: Add long click to reset food state
+    on_click:
+      - min_length: 1000ms
+        max_length: 5000ms
+        then:
+          - logger.log: "Plant Food Button Long Press!"
+
   - platform: template
     name: "Button Plant Lamp"
     id: button_lamp
+    on_click:
+      - min_length: 1000ms
+        max_length: 5000ms
+        then:
+          - logger.log: "Plant Lamp Button Long Press!"
+          - light.toggle: plant_lamp
+
   - platform: gpio
     pin:
       number: GPIO11 # SW1 Pin 1 (Not GND plane pin!)
       mode:
         input: true
         pullup: true
-      inverted: true
-    name: "Water Low Switch"
-    id: water_low_switch
+    name: "Water Present Switch"
+    id: water_present_switch
+    device_class: moisture
+    on_press:
+      then:
+        - logger.log: "Water refilled!"
+        - light.turn_off: led_water_low
+        - light.turn_on: led_water_high
+    on_release:
+      then:
+        - logger.log: "Water Low!"
+        - light.turn_off: led_water_high
+        - light.turn_on: led_water_low
 
 output:
   - platform: gpio
@@ -169,7 +206,6 @@ switch:
     assumed_state: true
     optimistic: true
     turn_on_action:
-      # TODO: Check if this could use "- output.turn_on: out_pump_h_X" instead?
       - output.turn_on: out_pump_h_plus
       - output.turn_on: out_pump_h_minus
       - output.set_level:
@@ -179,7 +215,6 @@ switch:
           id: out_pump_h_minus
           level: 50%
     turn_off_action:
-      # TODO: Check if this could use "- output.turn_off: out_pump_h_X" instead?
       - output.set_level:
           id: out_pump_h_plus
           level: 0%
@@ -190,36 +225,72 @@ switch:
       - output.turn_off: out_pump_h_minus
 
 light:
+# Front Panel LEDs (Internally Controlled)
   - platform: binary
     name: "Led Plant Food Low"
     id: led_food_low
     output: out_led_food_low
     restore_mode: ALWAYS_OFF
+    internal: true
   - platform: binary
     name: "Led Plant Food High"
     id: led_food_high
     output: out_led_food_high
     restore_mode: ALWAYS_OFF
+    internal: true
   - platform: binary
     name: "Led Water Low"
     id: led_water_low
     output: out_led_water_low
     restore_mode: ALWAYS_OFF
+    internal: true
   - platform: binary
     name: "Led Water High"
     id: led_water_high
     output: out_led_water_high
     restore_mode: ALWAYS_OFF
+    internal: true
   - platform: binary
     name: "Led Plant Lamp State"
     id: led_plant_lamp_state
     output: out_led_plant_lamp_state
     restore_mode: ALWAYS_OFF
+    internal: true
+
+# Main Plant Lamp
   - platform: monochromatic
     id: plant_lamp
     name: "Plant Lamp"
     output: out_plant_lamp
-    default_transition_length: 5s
+    default_transition_length: 1s
     restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - logger.log: "Plant Lamp Turned On!"
+      - light.turn_on: led_plant_lamp_state
+    on_turn_off:
+      - logger.log: "Plant Lamp Turned Off!"
+      - light.turn_off: led_plant_lamp_state
+
 # TODO: Create a sprinkler component to control the water pump periodically instead of with time interval??
 # https://esphome.io/components/sprinkler.html
+
+sun:
+  latitude: -0.1862502° # Somewhere sunny!
+  longitude: -78.5953483°
+
+  on_sunrise:
+    - then:
+        - logger.log: Good morning!
+        - light.turn_on: plant_lamp
+
+  on_sunset:
+    - then:
+        - logger.log: Good evening!
+        - light.turn_on: plant_lamp
+
+sprinkler:
+  - id: irrigation_ctrlr
+    valves:
+      - valve_switch: "Plant Water"
+        run_duration: 300s
+        valve_switch_id : water_pump
