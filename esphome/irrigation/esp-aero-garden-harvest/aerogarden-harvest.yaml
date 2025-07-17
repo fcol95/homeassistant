@@ -43,12 +43,20 @@ wifi:
 
 captive_portal:
 
+globals:
+  - id: plants_planted_timestamp
+    type: uint32_t
+    restore_value: yes
+  - id: food_added_timestamp
+    type: uint32_t
+    restore_value: yes
+
 time:
   - platform: homeassistant
-    id: homeassistant_time
+    id: hass_time
     on_time:
       # Pump Cycle as per the original AeroGarden Harvest schedule.
-      # Every 25 minutes
+      # Every 25 minutes activate the pump for 5min.
       - seconds: 0
         minutes: /25
         then:
@@ -60,15 +68,19 @@ time:
               else:
                 - logger.log: "Skipping pump cycle - no water detected!"
       # Food Cycle as per the original AeroGarden Harvest schedule.
-      # Every 14 days (starting at 1st of the month)
-      # TODO: This interval needs to start at the reset of food refill not the 1st of the month!!!
+      # Every 14 days after reset. Checking every day!
       - seconds: 0
         minutes: 0
         hours: 0
-        days_of_month: 1/14
+        days_of_month: 1/1
         then:
-          - lambda: |-
-              id(food_missing).publish_state(true); // Set food missing state!
+          - if:
+              condition:
+                lambda: |-
+                  return (!!!id(food_missing).state && (id(hass_time).now().timestamp - id(food_added_timestamp)) >= 14*24*60*60); // 14 days in seconds
+              then:
+                - lambda: |-
+                    id(food_missing).publish_state(true); // Set food missing state!
 
 sensor:
   - platform: wifi_signal
@@ -140,6 +152,14 @@ interval:
 
 button:
   - platform: template
+    name: "Reset Plant Planted"
+    id: button_reset_planted
+    icon: "mdi:sprout"
+    on_press:
+      - logger.log: "Plant Planted Reset Requested!"
+      - lambda: |-
+          id(plants_planted_timestamp)= id(hass_time).now().timestamp; // Reset plants planted timestamp
+  - platform: template
     name: "Reset Plant Food"
     id: button_reset_food
     icon: "mdi:leaf"
@@ -207,6 +227,9 @@ binary_sensor:
         - logger.log: "Food Present!"
         - light.turn_off: led_food_low
         - light.turn_on: led_food_high
+        - lambda: |-
+            id(food_added_timestamp)= id(hass_time).now().timestamp; // Reset food added timestamp
+
 
 output:
   - platform: gpio
