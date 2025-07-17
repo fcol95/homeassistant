@@ -195,6 +195,10 @@ button:
       - lambda: |-
           id(food_missing).publish_state(false); // Reset food missing state!
 
+  - platform: restart
+    name: Restart
+    entity_category: "diagnostic"
+
 binary_sensor:
   # TODO: Add filters for button presses to avoid false positives?
   - platform: template
@@ -321,10 +325,6 @@ switch:
           level: 0%
       - output.turn_off: out_pump_h_plus
       - output.turn_off: out_pump_h_minus
-
-  - platform: restart
-    name: Restart
-    entity_category: "diagnostic"
 
 light:
   # Front Panel LEDs (Internally Controlled)
