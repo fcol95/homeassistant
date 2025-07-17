@@ -109,8 +109,8 @@ sensor:
               return (
                 (days ? to_string(days) + "d " : "") +
                 (hours ? to_string(hours) + "h " : "") +
-                (minutes ? to_string(minutes) + "m " : "") //+
-                //(to_string(seconds) + "s")
+                (minutes ? to_string(minutes) + "m " : "") +
+                (to_string(seconds) + "s")
               ).c_str();
         - text_sensor.template.publish:
             id: last_planted_datetime
@@ -125,8 +125,8 @@ sensor:
               return (
                 (days ? to_string(days) + "d " : "") +
                 (hours ? to_string(hours) + "h " : "") +
-                (minutes ? to_string(minutes) + "m " : "") //+
-                //(to_string(seconds) + "s")
+                (minutes ? to_string(minutes) + "m " : "") +
+                (to_string(seconds) + "s")
               ).c_str();
 
   - platform: uptime
