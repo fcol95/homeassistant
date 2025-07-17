@@ -2,7 +2,8 @@ esphome:
   name: aerogarden-harvest
 
 esp32:
-  board: esp32dev
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
   framework:
     type: esp-idf
     version: latest
@@ -65,14 +66,14 @@ text_sensor:
       entity_category: "diagnostic"
 
 # NOTE: AeroGarden Harvest Touch/Capacity Buttons are read by a secondary MCU with touch input that communicates over I2C.
-# PDA -> Clock (Control Board Connector C2 Pin #5), PCK -> Data (Control Board Connector C2 Pin #6).
+# PDA -> Clock (Control Board Connector P1 Pin #5), PCK -> Data (Control Board Connector P1 Pin #6).
 # Slave Address: 0x50.
 # Sequence: Start. Write byte 0x0. ACK. Read byte. NAK. Stop
 # If byte is 0, idle, if bit 2 is 1, lamp button is pressed. If bit 0 is 1, food button is pressed.
 # CLK ~7kHz. Data on rising edge. Polling every 10ms.
 i2c:
-  sda: GPIO4
-  scl: GPIO14
+  scl: GPIO13
+  sda: GPIO12
   scan: false
   frequency: 10kHz # Try 7kHz?
 
@@ -97,7 +98,7 @@ binary_sensor:
     id: button_lamp
   - platform: gpio
     pin:
-      number: GPIO32
+      number: GPIO11 # SW1 Pin 1 (Not GND plane pin!)
       mode:
         input: true
         pullup: true
@@ -107,19 +108,19 @@ binary_sensor:
 output:
   - platform: gpio
     id: out_led_food_low
-    pin: GPIO26 # R1 Resistor
+    pin: GPIO10 # R1 Resistor
   - platform: gpio
     id: out_led_food_high
-    pin: GPIO33 # R10 Resistor
+    pin: GPIO9 # R10 Resistor
   - platform: gpio
     id: out_led_water_low
-    pin: GPIO16 # R2 Resistor
+    pin: GPIO8 # R2 Resistor
   - platform: gpio
     id: out_led_water_high
-    pin: GPIO17 # R11 Resistor
+    pin: GPIO7 # R11 Resistor
   - platform: gpio
     id: out_led_plant_lamp_state
-    pin: GPIO18 # R3 Resistor
+    pin: GPIO6 # R3 Resistor
   - platform: ledc
     id: out_plant_lamp # Check if 3.3V out is enough for driving this.
     pin: GPIO5 # CN1 pin 5 (- symbol wire)
@@ -127,14 +128,14 @@ output:
     channel: 2
   - platform: ledc
     id: out_pump_h_plus
-    pin: GPIO19
+    pin: GPIO4 # CN1 pin 2
     frequency: 60Hz
     channel: 0 # Need to be the even adjacent to H- channel for phase control!
     phase_angle: 0.0
     zero_means_zero: true
   - platform: ledc
     id: out_pump_h_minus
-    pin: GPIO21
+    pin: GPIO2 # CN1 pin 1
     frequency: 60Hz
     channel: 1 # Need to be the odd adjacent to H+ channel for phase control!
     phase_angle: 180.0
