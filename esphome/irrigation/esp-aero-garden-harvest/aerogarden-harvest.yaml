@@ -152,7 +152,6 @@ binary_sensor:
   - platform: template
     name: "Button Plant Food"
     id: button_food
-    # TODO: Add long click to reset food state
     on_click:
       - min_length: 1000ms
         max_length: 5000ms
@@ -316,9 +315,6 @@ light:
     on_turn_off:
       - logger.log: "Plant Lamp Turned Off!"
       - light.turn_off: led_plant_lamp_state
-
-# TODO: Create a sprinkler component to control the water pump periodically instead of with time interval??
-# https://esphome.io/components/sprinkler.html
 
 sun:
   latitude: -0.1862502° # Somewhere sunny!
