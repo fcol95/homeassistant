@@ -2,8 +2,9 @@ esphome:
   name: aerogarden-harvest
   friendly_name: aerogarden-harvest
   on_boot:
-    priority: -100
+    priority: 600 # Needs to be before wifi activation!
     then:
+      - delay: 2s # Wait for the secondary MCU to boot up before drawing too much current!
       - logger.log: "AeroGarden Harvest booted!"
       - if:
           condition:
@@ -15,6 +16,26 @@ esphome:
           else:
             - lambda: |-
                 id(food_missing).publish_state(false); // Clear food missing state!
+      - if:
+          condition:
+            lambda: |-
+              return (!!!id(food_missing).state);
+          then:
+            - light.turn_off: led_food_low
+            - light.turn_on: led_food_high
+          else:
+            - light.turn_off: led_food_high
+            - light.turn_on: led_food_low
+      - if:
+          condition:
+            lambda: |-
+              return (id(water_present_switch).state);
+          then:
+            - light.turn_off: led_water_low
+            - light.turn_on: led_water_high
+          else:
+            - light.turn_off: led_water_high
+            - light.turn_on: led_water_low
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -28,11 +49,12 @@ logger:
 
 # Enable Home Assistant API
 api:
-  password: ""
+  encryption:
+    key: !secret api_encryption_key
 
 ota:
   - platform: esphome
-    password: ""
+    password: !secret ota_password
 
 mdns:
 
@@ -43,7 +65,6 @@ web_server:
     password: !secret web_server_password
 
 wifi:
-  enable_on_boot: false # Needed to not draw too much power on boot.
   networks:
     - ssid: !secret main_wifi_ssid
       password: !secret main_wifi_password
@@ -160,19 +181,12 @@ i2c_device:
 
 interval:
   - interval: 10ms
-    startup_delay: 1s # Wait for the secondary MCU to boot up.
     id: interval_i2c_comm
     then:
       - lambda: |-
           auto b = id(i2c_touch_mcu).read_byte(0x50);
           id(button_lamp).publish_state(b.value() & 0b00000100); // Lamp button state
           id(button_food).publish_state(b.value() & 0b00000001); // Food button state
-  - interval: 1s
-    startup_delay: 2s # Wait for the secondary MCU to boot up.
-    id: interval_wifi_check
-    then:
-      # TODO: Run this only once?
-      - wifi.enable:
 
 button:
   - platform: template
@@ -336,31 +350,31 @@ light:
     name: "Led Plant Food Low"
     id: led_food_low
     output: out_led_food_low
-    restore_mode: ALWAYS_OFF
+    restore_mode: RESTORE_DEFAULT_OFF
     internal: true
   - platform: binary
     name: "Led Plant Food High"
     id: led_food_high
     output: out_led_food_high
-    restore_mode: ALWAYS_OFF
+    restore_mode: RESTORE_DEFAULT_OFF
     internal: true
   - platform: binary
     name: "Led Water Low"
     id: led_water_low
     output: out_led_water_low
-    restore_mode: ALWAYS_OFF
+    restore_mode: RESTORE_DEFAULT_OFF
     internal: true
   - platform: binary
     name: "Led Water High"
     id: led_water_high
     output: out_led_water_high
-    restore_mode: ALWAYS_OFF
+    restore_mode: RESTORE_DEFAULT_OFF
     internal: true
   - platform: binary
     name: "Led Plant Lamp State"
     id: led_plant_lamp_state
     output: out_led_plant_lamp_state
-    restore_mode: ALWAYS_OFF
+    restore_mode: RESTORE_DEFAULT_OFF
     internal: true
 
   # Main Plant Lamp
@@ -369,7 +383,7 @@ light:
     name: "Plant Lamp"
     output: out_plant_lamp
     default_transition_length: 1s
-    restore_mode: ALWAYS_OFF
+    restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       - logger.log: "Plant Lamp Turned On!"
       - light.turn_on: led_plant_lamp_state
