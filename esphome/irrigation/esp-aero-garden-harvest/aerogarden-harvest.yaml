@@ -432,7 +432,7 @@ sun:
         condition:
           switch.is_on: switch_plant_present
         then:
-          - sprinkler.start_full_cycle: irrigation_ctrlr
+          - light.turn_on: plant_lamp
         else:
           - logger.log: "Skipping lamp cycle!"
 
