@@ -341,6 +341,7 @@ switch:
     optimistic: true
     turn_on_action:
       - logger.log: "Plant Present Activated!"
+      - script.execute: food_missing_time_check
       - datetime.datetime.set: # Reset last planted datetime to now!
           id: last_planted_datetime
           datetime: !lambda |-
