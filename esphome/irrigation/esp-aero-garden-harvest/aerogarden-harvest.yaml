@@ -188,19 +188,19 @@ binary_sensor:
   - platform: template
     name: "Button Plant Food"
     id: button_food
-    on_click:
-      - min_length: 3000ms
-        max_length: 10000ms
+    on_multi_click:
+      - timing:
+          - ON for at least 2s
         then:
+          - logger.log: "Plant Food Button Long Press!"
           - if:
               condition:
                 switch.is_on: switch_plant_present
               then:
-                - logger.log: "Plant Food Button Long Press!"
                 - lambda: |- # Reset food missing state!
                     id(food_missing).publish_state(false);
-      - min_length: 100ms
-        max_length: 1000ms
+      - timing:
+          - ON for 0.1s to 1.5s
         then: # Pump Sanity Check
           - logger.log: "Plant Food Button Short Press!"
           - sprinkler.start_full_cycle: irrigation_ctrlr
@@ -210,14 +210,14 @@ binary_sensor:
   - platform: template
     name: "Button Plant Lamp"
     id: button_lamp
-    on_click:
-      - min_length: 3000ms
-        max_length: 10000ms
+    on_multi_click:
+      - timing:
+          - ON for at least 2s
         then:
           - logger.log: "Plant Lamp Button Long Press!"
           - switch.toggle: switch_plant_present
-      - min_length: 100ms
-        max_length: 1000ms
+      - timing:
+          - ON for 0.1s to 1.5s
         then:
           - logger.log: "Plant Lamp Button Short Press!"
           - light.toggle: plant_lamp
