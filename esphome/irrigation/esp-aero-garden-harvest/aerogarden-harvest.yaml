@@ -358,8 +358,7 @@ switch:
             - light.turn_on: led_food_low
       - if:
           condition:
-            lambda: |-
-              return (id(water_present_switch).state);
+            - binary_sensor.is_on: water_present_switch
           then:
             - light.turn_off: led_water_low
             - light.turn_on: led_water_high
