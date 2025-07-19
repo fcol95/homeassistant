@@ -10,8 +10,6 @@ globals:
 
 bk72xx:
   board: cbu
-  framework:
-    version: latest
 
 # Enable logging
 logger:
@@ -36,10 +34,10 @@ web_server:
 
 wifi:
   networks:
-  - ssid: !secret main_wifi_ssid
-    password: !secret main_wifi_password
-  - ssid: !secret secondary_wifi_ssid
-    password: !secret secondary_wifi_password
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -93,7 +91,7 @@ light:
     name: "Led"
     id: led
     output: led_out
-    
+
 binary_sensor:
   - platform: gpio
     name: "Switch Up"

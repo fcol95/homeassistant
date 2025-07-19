@@ -10,8 +10,6 @@ globals:
 
 bk72xx:
   board: cbu
-  framework:
-    version: latest
 
 # Enable logging
 logger:
