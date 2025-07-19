@@ -234,14 +234,22 @@ binary_sensor:
     on_press:
       then:
         - logger.log: "Water refilled!"
-        - light.turn_off: led_water_low
-        - light.turn_on: led_water_high
+        - if:
+            condition:
+              - switch.is_on: switch_plant_present
+            then:
+              - light.turn_off: led_water_low
+              - light.turn_on: led_water_high
     on_release:
       then:
         - sprinkler.shutdown: irrigation_ctrlr # Stop the pump if water is low!
         - logger.log: "Water Low!"
-        - light.turn_off: led_water_high
-        - light.turn_on: led_water_low
+        - if:
+            condition:
+              - switch.is_on: switch_plant_present
+            then:
+              - light.turn_off: led_water_high
+              - light.turn_on: led_water_low
 
   - platform: template
     name: "Food Missing"
