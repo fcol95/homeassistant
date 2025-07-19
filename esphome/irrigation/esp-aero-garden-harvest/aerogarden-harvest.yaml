@@ -6,36 +6,7 @@ esphome:
     then:
       - delay: 2s # Wait for the secondary MCU to boot up before drawing too much current!
       - logger.log: "AeroGarden Harvest booted!"
-      - if:
-          condition:
-            lambda: |-
-              return ((id(hass_time).now().timestamp - id(last_food_added_datetime).state_as_esptime().timestamp) >= 14*24*60*60); // 14 days in seconds
-          then:
-            - lambda: |-
-                id(food_missing).publish_state(true); // Set food missing state!
-          else:
-            - lambda: |-
-                id(food_missing).publish_state(false); // Clear food missing state!
-      - if:
-          condition:
-            lambda: |-
-              return (!!!id(food_missing).state);
-          then:
-            - light.turn_off: led_food_low
-            - light.turn_on: led_food_high
-          else:
-            - light.turn_off: led_food_high
-            - light.turn_on: led_food_low
-      - if:
-          condition:
-            lambda: |-
-              return (id(water_present_switch).state);
-          then:
-            - light.turn_off: led_water_low
-            - light.turn_on: led_water_high
-          else:
-            - light.turn_off: led_water_high
-            - light.turn_on: led_water_low
+      - script.execute: food_missing_time_check
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -89,24 +60,34 @@ time:
         then:
           - if:
               condition:
-                binary_sensor.is_on: water_present_switch
+                and:
+                  - switch.is_on: switch_plant_present
+                  - binary_sensor.is_on: water_present_switch
               then:
                 - sprinkler.start_full_cycle: irrigation_ctrlr
               else:
-                - logger.log: "Skipping pump cycle - no water detected!"
+                - logger.log: "Skipping pump cycle!"
       # Food Cycle as per the original AeroGarden Harvest schedule.
       # Every 14 days after reset. Checking every half day!
       - seconds: 0
         minutes: 0
         hours: /12
         then:
-          - if:
-              condition:
-                lambda: |-
-                  return (!!!id(food_missing).state && (id(hass_time).now().timestamp - id(last_food_added_datetime).state_as_esptime().timestamp) >= 14*24*60*60); // 14 days in seconds
-              then:
-                - lambda: |-
-                    id(food_missing).publish_state(true); // Set food missing state!
+          script.execute: food_missing_time_check
+
+script:
+  - id: food_missing_time_check
+    then:
+      - if:
+          condition:
+            lambda: |- # Check if food has not been reset for more than 14 days!
+              return ((id(hass_time).now().timestamp - id(last_food_added_datetime).state_as_esptime().timestamp) >= 14*24*60*60);
+          then:
+            - lambda: |- # Set food missing state!
+                id(food_missing).publish_state(true);
+          else:
+            - lambda: |- # Clear food missing state!
+                id(food_missing).publish_state(false);
 
 sensor:
   - platform: wifi_signal
@@ -190,24 +171,13 @@ interval:
 
 button:
   - platform: template
-    name: "Reset Plant Planted"
-    id: button_reset_planted
-    icon: "mdi:sprout"
-    on_press:
-      - logger.log: "Plant Planted Reset Requested!"
-      - datetime.datetime.set:
-          id: last_planted_datetime
-          datetime: !lambda |-
-            return id(hass_time).now(); // Reset last planted datetime to now!
-
-  - platform: template
     name: "Reset Plant Food"
     id: button_reset_food
     icon: "mdi:leaf"
     on_press:
       - logger.log: "Plant Food Reset Requested!"
-      - lambda: |-
-          id(food_missing).publish_state(false); // Reset food missing state!
+      - lambda: |- # Reset food missing state!
+          id(food_missing).publish_state(false);
 
   - platform: restart
     name: Restart
@@ -218,24 +188,36 @@ binary_sensor:
   - platform: template
     name: "Button Plant Food"
     id: button_food
-    on_click:
-      - min_length: 3000ms
-        max_length: 10000ms
+    on_multi_click:
+      - timing:
+          - ON for at least 2s
         then:
           - logger.log: "Plant Food Button Long Press!"
-          - lambda: |-
-              id(food_missing).publish_state(false); // Reset food missing state!
+          - if:
+              condition:
+                switch.is_on: switch_plant_present
+              then:
+                - lambda: |- # Reset food missing state!
+                    id(food_missing).publish_state(false);
+      - timing:
+          - ON for 0.1s to 1.5s
+        then: # Pump Sanity Check
+          - logger.log: "Plant Food Button Short Press!"
+          - sprinkler.start_full_cycle: irrigation_ctrlr
+          - delay: 5s
+          - sprinkler.shutdown: irrigation_ctrlr # Stop the pump if water is low!
 
   - platform: template
     name: "Button Plant Lamp"
     id: button_lamp
-    on_click:
-      - min_length: 3000ms
-        max_length: 10000ms
+    on_multi_click:
+      - timing:
+          - ON for at least 2s
         then:
           - logger.log: "Plant Lamp Button Long Press!"
-      - min_length: 100ms
-        max_length: 1000ms
+          - switch.toggle: switch_plant_present
+      - timing:
+          - ON for 0.1s to 1.5s
         then:
           - logger.log: "Plant Lamp Button Short Press!"
           - light.toggle: plant_lamp
@@ -269,18 +251,25 @@ binary_sensor:
     on_press:
       then:
         - logger.log: "Food Missing!"
-        - light.turn_off: led_food_high
-        - light.turn_on: led_food_low
+        - if:
+            condition:
+              switch.is_on: switch_plant_present
+            then:
+              - light.turn_off: led_food_high
+              - light.turn_on: led_food_low
     on_release:
       then:
         - logger.log: "Food Present!"
-        - light.turn_off: led_food_low
-        - light.turn_on: led_food_high
-        - datetime.datetime.set:
+        - datetime.datetime.set: # Reset last food added datetime to now!
             id: last_food_added_datetime
             datetime: !lambda |-
-              return id(hass_time).now(); // Reset last food added datetime to now!
-
+              return id(hass_time).now();
+        - if:
+            condition:
+              switch.is_on: switch_plant_present
+            then:
+              - light.turn_off: led_food_low
+              - light.turn_on: led_food_high
 output:
   - platform: gpio
     id: out_led_food_low
@@ -344,6 +333,58 @@ switch:
       - output.turn_off: out_pump_h_plus
       - output.turn_off: out_pump_h_minus
 
+  - platform: template
+    name: "Plant Present"
+    id: switch_plant_present
+    icon: "mdi:sprout"
+    restore_mode: RESTORE_DEFAULT_OFF
+    optimistic: true
+    turn_on_action:
+      - logger.log: "Plant Present Activated!"
+      - script.execute: food_missing_time_check
+      - datetime.datetime.set: # Reset last planted datetime to now!
+          id: last_planted_datetime
+          datetime: !lambda |-
+            return id(hass_time).now();
+      - if:
+          condition:
+            lambda: |-
+              return (!!!id(food_missing).state);
+          then:
+            - light.turn_off: led_food_low
+            - light.turn_on: led_food_high
+          else:
+            - light.turn_off: led_food_high
+            - light.turn_on: led_food_low
+      - if:
+          condition:
+            - binary_sensor.is_on: water_present_switch
+          then:
+            - light.turn_off: led_water_low
+            - light.turn_on: led_water_high
+          else:
+            - light.turn_off: led_water_high
+            - light.turn_on: led_water_low
+
+    turn_off_action:
+      - logger.log: "Plant Present Deactivated!"
+      - datetime.datetime.set: # Reset last planted datetime to never!
+          id: last_planted_datetime
+          datetime:
+            year: 1970
+            month: 1
+            day: 1
+            hour: 0
+            minute: 0
+            second: 0
+      - light.turn_off: led_food_low
+      - light.turn_off: led_food_high
+      - light.turn_off: led_water_low
+      - light.turn_off: led_water_high
+      - light.turn_off: led_plant_lamp_state
+      - light.turn_off: plant_lamp
+      - sprinkler.shutdown: irrigation_ctrlr
+
 light:
   # Front Panel LEDs (Internally Controlled)
   - platform: binary
@@ -396,14 +437,18 @@ sun:
   longitude: -78.5953483°
 
   on_sunrise:
-    - then:
-        - logger.log: Good morning!
-        - light.turn_on: plant_lamp
+    - if:
+        condition:
+          switch.is_on: switch_plant_present
+        then:
+          - light.turn_on: plant_lamp
+        else:
+          - logger.log: "Skipping lamp cycle!"
 
   on_sunset:
     - then:
-        - logger.log: Good evening!
-        - light.turn_on: plant_lamp
+        - logger.log: "Good evening!"
+        - light.turn_off: plant_lamp
 
 sprinkler:
   - id: irrigation_ctrlr
