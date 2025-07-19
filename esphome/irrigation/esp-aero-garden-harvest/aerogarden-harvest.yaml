@@ -192,9 +192,13 @@ binary_sensor:
       - min_length: 3000ms
         max_length: 10000ms
         then:
-          - logger.log: "Plant Food Button Long Press!"
-          - lambda: |- # Reset food missing state!
-              id(food_missing).publish_state(false);
+          - if:
+              condition:
+                switch.is_on: switch_plant_present
+              then:
+                - logger.log: "Plant Food Button Long Press!"
+                - lambda: |- # Reset food missing state!
+                    id(food_missing).publish_state(false);
       - min_length: 100ms
         max_length: 1000ms
         then: # Pump Sanity Check
@@ -211,9 +215,7 @@ binary_sensor:
         max_length: 10000ms
         then:
           - logger.log: "Plant Lamp Button Long Press!"
-          - switch.template.publish:
-              id: switch_plant_present
-              state: !lambda "return !id(switch_plant_present).state;"
+          - switch.toggle: switch_plant_present
       - min_length: 100ms
         max_length: 1000ms
         then:
