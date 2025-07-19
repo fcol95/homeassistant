@@ -251,18 +251,25 @@ binary_sensor:
     on_press:
       then:
         - logger.log: "Food Missing!"
-        - light.turn_off: led_food_high
-        - light.turn_on: led_food_low
+        - if:
+            condition:
+              switch.is_on: switch_plant_present
+            then:
+              - light.turn_off: led_food_high
+              - light.turn_on: led_food_low
     on_release:
       then:
         - logger.log: "Food Present!"
-        - light.turn_off: led_food_low
-        - light.turn_on: led_food_high
         - datetime.datetime.set: # Reset last food added datetime to now!
             id: last_food_added_datetime
             datetime: !lambda |-
               return id(hass_time).now();
-
+        - if:
+            condition:
+              switch.is_on: switch_plant_present
+            then:
+              - light.turn_off: led_food_low
+              - light.turn_on: led_food_high
 output:
   - platform: gpio
     id: out_led_food_low
