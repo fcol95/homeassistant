@@ -204,7 +204,7 @@ binary_sensor:
         then: # Pump Sanity Check
           - logger.log: "Plant Food Button Short Press!"
           - sprinkler.start_full_cycle: irrigation_ctrlr
-          - delay: 5s
+          - delay: 30s
           - sprinkler.shutdown: irrigation_ctrlr # Stop the pump if water is low!
 
   - platform: template
@@ -278,6 +278,12 @@ binary_sensor:
             then:
               - light.turn_off: led_food_low
               - light.turn_on: led_food_high
+              - if:
+                  condition:
+                    - binary_sensor.is_on: water_present_switch
+                  then:
+                    - sprinkler.start_full_cycle: irrigation_ctrlr
+
 output:
   - platform: gpio
     id: out_led_food_low
