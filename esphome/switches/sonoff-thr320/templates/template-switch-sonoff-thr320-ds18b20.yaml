@@ -177,7 +177,7 @@ switch:
 
   - platform: restart
     name: Restart
-    
+
   # This is needed to power the external sensor.
   # It receives 3v3 from this pin, which is pulled up on boot.
   - platform: gpio
@@ -202,7 +202,7 @@ light:
     id: climate_state_led
     internal: True
     pin:
-      number: GPIO13 # Right Most Led - "AUTO Led" 
+      number: GPIO13 # Right Most Led - "AUTO Led"
       inverted: True
 
 interval:

@@ -11,7 +11,7 @@ You can also set the recovery state by device with switch_restore_mode.
 		https://docs.libretiny.eu/boards/wb3s/#usage
 	1.2. U3 - Touch Controller: SC05A.
 		https://wmsc.lcsc.com/wmsc/upload/file/pdf/v2/lcsc/1809131515_ICMAN-Tech-SC05A_C96168.pdf
-	1.3. U6 - LCD Controller: 
+	1.3. U6 - LCD Controller:
 		https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_TM-Shenzhen-Titan-Micro-Elec-TM1621_C41326.pdf
 	1.4. U7 - 92F Series Touch MCU: sc92f8463bx
 		https://www.socmcu.com/cn/product_show.php?id=34

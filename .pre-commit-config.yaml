@@ -1,0 +1,28 @@
+# See https://pre-commit.com for more info
+#
+# To enable pre-commit in this repo:
+#   1. Install pre-commit:    pip install pre-commit
+#   2. Install hooks:         pre-commit install
+#
+# To run all hooks on all files manually:
+#   pre-commit run --all-files
+#
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+
+  # Secret scanning to prevent committing API/OTA keys or passwords
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks

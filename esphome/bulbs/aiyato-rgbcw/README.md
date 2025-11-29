@@ -30,4 +30,3 @@ Option 2:
 
     - Build your new esphome binary (with esphome tool or homeassistant device builder or else).
     - Upload with webui while connected to device access point.
-

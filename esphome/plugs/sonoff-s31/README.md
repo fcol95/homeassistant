@@ -30,5 +30,5 @@ Buy link: https://www.aliexpress.com/item/32847534626.html.
 	esphome compile plug-sonoff-s31-example.yaml
 6. Flash with esptool (replace path with device name!):
 	Power up the device while holding the side button, then:
-	
+
 	esptool --port COM18 --baud 115200 write_flash 0x0 "./plug-sonoff-s31-example.bin" --flash_mode dout
