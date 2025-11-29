@@ -1,0 +1,42 @@
+esphome:
+  name: "cbu-base-config"
+  friendly_name: "CBU Base Config"
+
+bk72xx:
+  board: cbu
+  framework:
+    version: latest
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  networks:
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${device_name}
+    password: !secret fallback_hotspot_password
+
+captive_portal:
+
+mdns:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password

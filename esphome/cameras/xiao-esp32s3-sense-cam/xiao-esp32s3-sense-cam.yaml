@@ -1,0 +1,83 @@
+# Configuration for ESPHome
+# Ref: https://wiki.seeedstudio.com/XIAO_ESP32S3_esphome/
+esphome:
+  # Name of the ESP32-S3 device
+  name: xiao-esp32s3-sense-cam
+  friendly_name: "Xiao ESP32-S3 Sense Camera"
+
+  # PlatformIO build options
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.arduino.memory_type: qio_opi
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: qio
+
+# Configuration for ESP32
+esp32:
+  board: seeed_xiao_esp32s3
+  framework:
+    type: arduino
+    version: latest
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+mdns:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${device_name}
+    password: !secret fallback_hotspot_password
+
+captive_portal:
+
+# I2C for camera
+i2c:
+  id: i2c_cam
+  sda: GPIO40
+  scl: GPIO39
+  scan: true
+
+# Configuration for the ESP32 Camera
+esp32_camera:
+  id: espcam
+  external_clock:
+    pin: GPIO10
+    frequency: 20MHz
+  i2c_id: i2c_cam
+  data_pins: [GPIO15, GPIO17, GPIO18, GPIO16, GPIO14, GPIO12, GPIO11, GPIO48]
+  vsync_pin: GPIO38
+  href_pin: GPIO47
+  pixel_clock_pin: GPIO13
+  resolution: 800x600
+  horizontal_mirror: false
+  vertical_flip: false
+
+# Configuration for the ESP32 Camera Web Server
+esp32_camera_web_server:
+  - port: 8080
+    mode: stream
+  - port: 8081
+    mode: snapshot

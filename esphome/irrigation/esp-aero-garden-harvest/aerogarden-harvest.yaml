@@ -13,7 +13,6 @@ esp32:
   variant: esp32s3
   framework:
     type: esp-idf
-    version: latest
 
 # Enable logging
 logger:

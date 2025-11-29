@@ -1,0 +1,158 @@
+# Reference: https://devices.esphome.io/devices/Beca-Thermostat
+# Tuya Climate Reference: https://esphome.io/components/climate/tuya.html
+# Basic Config
+esphome:
+  name: ${device_name}
+  friendly_name: ${device_friendly_name}
+
+# Disable logging (Uart used by Tuya)
+logger:
+  baud_rate: 0
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ${device_api_encryption_key}
+
+ota:
+  - platform: esphome
+    password: ${device_ota_password}
+
+mdns:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+  - ssid: !secret main_wifi_ssid
+    password: !secret main_wifi_password
+  - ssid: !secret secondary_wifi_ssid
+    password: !secret secondary_wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${device_name}
+    password: !secret fallback_hotspot_password
+
+captive_portal:
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+tuya:
+  # The MCU uses this for displaying the time in the display as well as for
+  # scheduled programmes one may have configured in their thermostat.
+  time_id: ha_time
+
+  # (Optional)
+  # Schedules are not modeled in neither ESPHome nor Home Assistant.
+  #
+  # This parses the data point and emitting it as a string in the logs, and
+  # serves as an example for users desiring more advanced configurations.
+  on_datapoint_update:
+    - sensor_datapoint: 101
+      datapoint_type: raw
+      then:
+        - lambda: |-
+            // Apparently these vary per model; these are valid for the BHT-002
+            const int POS_HOUR = 1;
+            const int POS_MINUTE = 0;
+            const float TEMPERATURE_MULTIPLIER = 0.5f;
+            const std::map<int, std::string> DAY_OFFSET = {
+                {0, "days 1-5"},
+                {6, "day 6"},
+                {12, "day 7"},
+            };
+
+            for (auto& day : DAY_OFFSET) {
+                for (int period = 0; period < 6; period++) {
+                    int offset = (day.first + period) * 3;
+                    int hour = x[offset + POS_HOUR];
+                    int minute = x[offset + POS_MINUTE];
+                    float temp = x[offset + 2] * TEMPERATURE_MULTIPLIER;
+                    ESP_LOGD("custom", "Scheduled program for %s %02d:%02d set at %.1f C", day.second.c_str(), hour, minute, temp);
+              }
+            }
+
+climate:
+  - platform: tuya
+    name: "Thermostat"
+    switch_datapoint: 1
+    target_temperature_datapoint: 2
+    current_temperature_datapoint: 3
+    preset:
+      eco:
+        datapoint: 5
+        temperature: 20 °C
+    temperature_multiplier: 0.5
+    visual:
+      min_temperature: 20 °C
+      max_temperature: 35 °C
+      temperature_step: 0.5 °C
+
+sensor:
+  - platform: "tuya"
+    name: "Temperature"
+    sensor_datapoint: 3
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.5
+    # The climate component already includes temperature, but having the
+    # temperature as a separate sensor can be useful
+    disabled_by_default: true
+
+  # The external temperature sensor, if wired
+  - platform: "tuya"
+    name: "Temperature (external)"
+    sensor_datapoint: 102
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    accuracy_decimals: 1
+    filters:
+      - multiply: 0.5
+    disabled_by_default: true
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: uptime
+    name: "Uptime"
+    id: sensor_uptime
+    update_interval: 300s
+    entity_category: "diagnostic"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: "diagnostic"
+    ssid:
+      name: "Connected SSID"
+      entity_category: "diagnostic"
+    mac_address:
+      name: "MAC Address"
+      entity_category: "diagnostic"
+
+switch:
+  - platform: "tuya"
+    name: "Lock"
+    icon: "mdi:lock"
+    switch_datapoint: 6
+
+select:
+  - platform: "tuya"
+    name: "Scheduled programming"
+    icon: "mdi:calendar"
+    enum_datapoint: 4
+    options:
+      0: Use scheduled programs
+      1: Manual control

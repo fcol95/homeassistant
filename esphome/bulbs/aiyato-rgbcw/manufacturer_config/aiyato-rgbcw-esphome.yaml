@@ -7,11 +7,11 @@ substitutions:
   color_interlock: 'true'
 
 esphome:
-  name: "${name}"
+  name: ${name}
   name_add_mac_suffix: true
   project:
-    name: "${project_name}"
-    version: "${project_version}"
+    name: ${project_name}
+    version: ${project_version}
 
 preferences:
   flash_write_interval: 1min
@@ -166,8 +166,8 @@ output:
 
 light:
   - platform: rgbww
-    name: "${friendly_name}"
-    restore_mode: "${light_restore_mode}"
+    name: ${friendly_name}
+    restore_mode: ${light_restore_mode}
     red: red_output
     green: green_output
     blue: blue_output
@@ -175,7 +175,7 @@ light:
     warm_white: warm_white_output
     cold_white_color_temperature: 6000 K
     warm_white_color_temperature: 3000 K
-    color_interlock: "${color_interlock}"
+    color_interlock: ${color_interlock}
     id: my_light
 
 text_sensor:

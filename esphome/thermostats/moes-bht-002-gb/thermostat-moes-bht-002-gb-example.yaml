@@ -1,0 +1,8 @@
+substitutions:
+  device_name: "thermostat-moes-bht-002-gb-example"
+  device_friendly_name: "Moes Thermostat Example"
+  device_api_encryption_key: "ENTER_YOUR_BASE64_ENCRYPTION_KEY_HERE!!!"
+  device_ota_password: "ENTER_YOUR_OTA_PASSWORD_HERE!!!"
+
+# NOTE: You can change the template below if you replaced the original WB3S chip with an ESP12F.
+<<: !include templates/template-thermostat-moes-bht-002-gb-wb3s.yaml

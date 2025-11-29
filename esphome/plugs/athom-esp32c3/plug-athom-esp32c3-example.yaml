@@ -1,0 +1,11 @@
+substitutions:
+  device_name: "plug-athom-esp32c3-example"
+  device_friendly_name: "Plug Bridge Example"
+  device_api_encryption_key: "ENTER_YOUR_BASE64_ENCRYPTION_KEY_HERE!!!"
+  device_ota_password: "ENTER_YOUR_OTA_PASSWORD_HERE!!!"
+  # Set plug relay restore state
+  switch_restore_mode: "RESTORE_DEFAULT_ON"
+  # Set the update interval for sensors
+  sensor_update_interval: 10s
+
+<<: !include templates/template-plug-athom-esp32c3.yaml

@@ -1,0 +1,14 @@
+# Moes GB Thermostat Modified with ESP-12F Chip Swap Config
+esp8266:
+  board: esp12e
+  early_pin_init: false
+  framework:
+    version: latest
+
+# Device Specific Config
+uart:
+  rx_pin: RX
+  tx_pin: TX
+  baud_rate: 9600
+
+<<: !include template-thermostat-moes-bht-002-gb.yaml

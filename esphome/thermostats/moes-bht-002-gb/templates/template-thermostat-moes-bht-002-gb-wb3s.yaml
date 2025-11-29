@@ -1,0 +1,11 @@
+# Original Moes GB Thermostat WB3S Config
+bk72xx:
+  board: wb3s # Ref: https://docs.libretiny.eu/boards/wb3s/#flash-memory-map
+
+# Device Specific Config
+uart:
+  rx_pin: RX1
+  tx_pin: TX1
+  baud_rate: 9600
+
+<<: !include template-thermostat-moes-bht-002-gb.yaml

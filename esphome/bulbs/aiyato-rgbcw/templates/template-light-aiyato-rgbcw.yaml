@@ -185,7 +185,7 @@ output:
 light:
   - platform: rgbww
     name: "Light"
-    restore_mode: "${light_restore_mode}"
+    restore_mode: ${light_restore_mode}
     red: red_output
     green: green_output
     blue: blue_output
