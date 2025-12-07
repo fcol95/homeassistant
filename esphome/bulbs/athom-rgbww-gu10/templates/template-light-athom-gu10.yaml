@@ -1,0 +1,186 @@
+globals:
+  - id: fast_boot
+    type: int
+    restore_value: yes
+    initial_value: "0"
+
+esphome:
+  name: "${device_name}"
+  friendly_name: "${device_friendly_name}"
+  comment: "athom 7w rgbcw light bulb"
+  min_version: 2024.6.0
+  project:
+    name: "China Athom Technology.Athom RGBCW Bulb"
+    version: "v1.1.4"
+  platformio_options:
+    board_upload.flash_size: 2MB
+    board_upload.maximum_size: 2097152
+    board_build.ldscript: eagle.flash.2m.ld
+  on_boot:
+    then:
+      - script.execute: fast_boot_script
+
+esp8266:
+  board: esp8285
+  restore_from_flash: true
+
+preferences:
+  flash_write_interval: 1min
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+logger:
+
+web_server:
+  port: 80
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${device_name}
+    password: !secret fallback_hotspot_password
+
+mdns:
+  disabled: false
+
+captive_portal:
+
+dashboard_import:
+  package_import_url: github://athom-tech/athom-configs/light-athom-gu10.yaml
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: factory_reset
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config
+
+output:
+  - platform: esp8266_pwm
+    id: red_output
+    pin: GPIO4
+    min_power: 0.000499
+    max_power: 1
+  - platform: esp8266_pwm
+    id: green_output
+    pin: GPIO12
+    min_power: 0.000499
+    max_power: 1
+  - platform: esp8266_pwm
+    id: blue_output
+    pin: GPIO14
+    min_power: 0.000499
+    max_power: 1
+  - platform: esp8266_pwm
+    id: warm_white_output
+    pin: GPIO13
+    min_power: 0.000499
+    max_power: 0.9
+  - platform: esp8266_pwm
+    id: white_output
+    pin: GPIO5
+    min_power: 0.000499
+    max_power: 0.9
+
+light:
+  - platform: rgbww
+    id: rgbww_light
+    name: "RGBCW_Bulb"
+    restore_mode: ${light_restore_mode}
+    red: red_output
+    green: green_output
+    blue: blue_output
+    warm_white: warm_white_output
+    cold_white: white_output
+    cold_white_color_temperature: 6000 K
+    warm_white_color_temperature: 3000 K
+    color_interlock: true
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      entity_category: "diagnostic"
+    ssid:
+      name: "Connected SSID"
+      entity_category: "diagnostic"
+    mac_address:
+      name: "MAC Address"
+      entity_category: "diagnostic"
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: uptime
+    name: "Uptime"
+    id: sensor_uptime
+    update_interval: 300s
+    entity_category: "diagnostic"
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+script:
+  - id: fast_boot_script
+    then:
+      - if:
+          condition:
+            lambda: return ( id(fast_boot) >= 3 );
+          then:
+            - lambda: |-
+                ESP_LOGD("light-athom-gu10.yaml", "Now the counter is greater than or equal to 3, perform factory reset device and reboot");
+                id(fast_boot) = 0;
+                fast_boot->loop();
+                global_preferences->sync();
+                auto call = id(rgbww_light).turn_on();
+                call.set_transition_length(500);
+                call.set_brightness(1.0);
+                call.set_color_mode(ColorMode::RGB);
+                call.set_rgb(0.0, 0.0, 1.0);
+                call.perform();
+            - delay: 5s
+            - button.press: factory_reset
+      - lambda: |-
+          id(fast_boot) += 1;
+          fast_boot->loop();
+          global_preferences->sync();
+          ESP_LOGD("light-athom-gu10.yaml", "Now the counter is %d.  Reset the device when the counter is greater than or equal to 3", id(fast_boot));
+      - delay: 10s
+      - lambda: |-
+          ESP_LOGD("light-athom-gu10.yaml", "Reset counter");
+          id(fast_boot) = 0;
+          fast_boot->loop();
+          global_preferences->sync();

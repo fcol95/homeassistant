@@ -35,10 +35,10 @@ web_server:
 
 wifi:
   networks:
-  - ssid: !secret main_wifi_ssid
-    password: !secret main_wifi_password
-  - ssid: !secret secondary_wifi_ssid
-    password: !secret secondary_wifi_password
+    - ssid: !secret main_wifi_ssid
+      password: !secret main_wifi_password
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -131,8 +131,8 @@ switch:
     id: relay
     restore_mode: ${switch_restore_mode} # Powering the relay may cause damage or instability when the programmer is supplying Vcc, set to ALWAYS_OFF if using programmer supply!
 
-time:
-  - platform: homeassistant #(required for total_daily_energy)
+time: # Required for total_daily_energy
+  - platform: homeassistant
     id: ha_time
 
 status_led:

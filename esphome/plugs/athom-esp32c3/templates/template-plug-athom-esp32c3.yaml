@@ -1,8 +1,13 @@
+globals:
+  - id: fast_boot
+    type: int
+    restore_value: yes
+    initial_value: "0"
+
 esphome:
   name: ${device_name}
   friendly_name: ${device_friendly_name}
   comment: "athom esp32-c3 smart plug"
-  #   name_add_mac_suffix: true
   min_version: 2025.7.0
   project:
     name: "Athom Technology.Smart Plug V3"
@@ -12,27 +17,8 @@ esphome:
     board_build.variant: esp32c3
     board_build.flash_mode: dio
   on_boot:
-    - priority: 600
-      then:
-        - select.set_index:
-            id: power_mode
-            index: !lambda |-
-              return id(restore_mode)-1;
-        - lambda: |-
-            switch(id(restore_mode))
-            {
-            case 1:{
-                    id(relay).turn_off();
-                    break;
-                          }
-            case 2:{
-                    id(relay).turn_on();
-                    break;
-                          }
-            default:{
-                    break;
-                          }
-            }
+    then:
+      - script.execute: fast_boot_script
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -83,9 +69,6 @@ wifi:
     ssid: ${device_name}
     password: !secret fallback_hotspot_password
 
-#   # Define dns domain / suffix to add to hostname
-#   domain: ${dns_domain}
-
 captive_portal:
 
 esp32_improv:
@@ -100,32 +83,6 @@ uart:
   data_bits: 8
   stop_bits: 1
   parity: EVEN
-
-globals:
-  - id: total_energy
-    type: float
-    restore_value: yes
-    initial_value: "0.0"
-
-  - id: restore_mode
-    type: int
-    restore_value: yes
-    initial_value: "2" # 0 = Always_Off. 1 = Restore_Power_Off. 2 = Always_On.
-
-select:
-  - platform: template
-    name: "Power On State"
-    id: "power_mode"
-    optimistic: true
-    icon: mdi:electric-switch
-    options:
-      - Always Off
-      - Always On
-      - Restore Power Off State
-    on_value:
-      then:
-        - lambda: |-
-            id(restore_mode)=i+1;
 
 binary_sensor:
   - platform: status
@@ -210,14 +167,6 @@ sensor:
         - throttle: ${sensor_update_interval}
         # Multiplication factor from W to kW is 0.001
         - multiply: 0.001
-      on_value:
-        then:
-          - lambda: |-
-              static float previous_energy_value = 0.0;
-              float current_energy_value = id(energy).state;
-              id(total_energy) += current_energy_value - previous_energy_value;
-              previous_energy_value = current_energy_value;
-              id(total_energy_sensor).update();
 
     apparent_power:
       name: "Apparent Power"
@@ -236,18 +185,6 @@ sensor:
       icon: mdi:percent-outline
       filters:
         - throttle_average: ${sensor_update_interval}
-
-  - platform: template
-    name: "Total Energy"
-    id: total_energy_sensor
-    unit_of_measurement: kWh
-    device_class: "energy"
-    state_class: "total_increasing"
-    icon: mdi:lightning-bolt
-    accuracy_decimals: 3
-    lambda: |-
-      return id(total_energy);
-    update_interval: ${sensor_update_interval}
 
   - platform: total_daily_energy
     name: "Total Daily Energy"
@@ -307,28 +244,9 @@ text_sensor:
       icon: mdi:network-pos
       entity_category: diagnostic
 
-  #  Creates a sensor showing when the device was last restarted
-  - platform: template
-    name: "Last Restart"
-    id: device_last_restart
-    icon: mdi:clock
-    entity_category: diagnostic
-#    device_class: timestamp
-
-time:
+time: # Required for total_daily_energy
   - platform: homeassistant
     id: hass_time
-    # Publish the time the device was last restarted
-    on_time_sync:
-      then:
-        # Update last restart time, but only once.
-        - if:
-            condition:
-              lambda: 'return id(device_last_restart).state == "";'
-            then:
-              - text_sensor.template.publish:
-                  id: device_last_restart
-                  state: !lambda 'return id(hass_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
 
 #Enable Bluetooth proxy
 bluetooth_proxy:
@@ -337,3 +255,35 @@ bluetooth_proxy:
 esp32_ble_tracker:
   scan_parameters:
     continuous: false # Enabling at API connect only!
+
+script:
+  - id: fast_boot_script
+    then:
+      - if:
+          condition:
+            lambda: return ( id(fast_boot) >= 3 );
+          then:
+            - lambda: |-
+                ESP_LOGD("plug-athom-esp32c3.yaml", "Now the counter is greater than or equal to 3, perform factory reset device and reboot");
+                id(fast_boot) = 0;
+                fast_boot->loop();
+                global_preferences->sync();
+                auto call = id(rgbww_light).turn_on();
+                call.set_transition_length(500);
+                call.set_brightness(1.0);
+                call.set_color_mode(ColorMode::RGB);
+                call.set_rgb(0.0, 0.0, 1.0);
+                call.perform();
+            - delay: 5s
+            - button.press: factory_reset
+      - lambda: |-
+          id(fast_boot) += 1;
+          fast_boot->loop();
+          global_preferences->sync();
+          ESP_LOGD("plug-athom-esp32c3.yaml", "Now the counter is %d.  Reset the device when the counter is greater than or equal to 3", id(fast_boot));
+      - delay: 10s
+      - lambda: |-
+          ESP_LOGD("plug-athom-esp32c3.yaml", "Reset counter");
+          id(fast_boot) = 0;
+          fast_boot->loop();
+          global_preferences->sync();

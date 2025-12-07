@@ -1,1 +1,5 @@
 .github
+.esphome
+.venv
+venv
+secrets.yaml
