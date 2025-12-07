@@ -1,0 +1,44 @@
+esphome:
+  name: esp32-c6-base
+  friendly_name: esp32-c6-base
+
+esp32:
+  board: esp32-c6-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  - platform: esphome
+
+network:
+  enable_ipv6: true
+
+openthread:
+  tlv: !secret openthread_tlv
+
+text_sensor:
+  - platform: openthread_info
+    ip_address:
+      name: "Thread IP Address"
+    channel:
+      name: "Thread Channel"
+    role:
+      name: "Thread Device Role"
+    rloc16:
+      name: "Thread RLOC16"
+    ext_addr:
+      name: "Thread Extended Address"
+    eui64:
+      name: "Thread EUI64"
+    network_name:
+      name: "Thread Network Name"
+    pan_id:
+      name: "Thread PAN ID"
+    ext_pan_id:
+      name: "Thread Extended PAN ID"
