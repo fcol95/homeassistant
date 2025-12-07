@@ -30,11 +30,11 @@ preferences:
 # Enable Home Assistant API
 api:
   encryption:
-    key: !secret api_encryption_key
+    key: "${device_api_encryption_key}"
 
 ota:
   - platform: esphome
-    password: !secret ota_password
+    password: "${device_ota_password}"
 
 logger:
 
@@ -76,7 +76,7 @@ button:
 
   - platform: factory_reset
     name: "Factory Reset"
-    id: factory_reset
+    id: button_factory_reset
     entity_category: config
 
   - platform: safe_mode
