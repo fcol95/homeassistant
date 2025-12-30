@@ -1,9 +1,3 @@
-globals:
-  - id: fast_boot
-    type: int
-    restore_value: yes
-    initial_value: "0"
-
 esphome:
   name: ${device_name}
   friendly_name: ${device_friendly_name}
@@ -16,9 +10,6 @@ esphome:
     board_build.mcu: esp32c3
     board_build.variant: esp32c3
     board_build.flash_mode: dio
-  on_boot:
-    then:
-      - script.execute: fast_boot_script
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -107,7 +98,7 @@ binary_sensor:
       - timing:
           - ON for at least 4s
         then:
-          - button.press: Reset
+          - button.press: button_factory_reset
 
 sensor:
   - platform: uptime
@@ -255,35 +246,3 @@ bluetooth_proxy:
 esp32_ble_tracker:
   scan_parameters:
     continuous: false # Enabling at API connect only!
-
-script:
-  - id: fast_boot_script
-    then:
-      - if:
-          condition:
-            lambda: return ( id(fast_boot) >= 3 );
-          then:
-            - lambda: |-
-                ESP_LOGD("plug-athom-esp32c3.yaml", "Now the counter is greater than or equal to 3, perform factory reset device and reboot");
-                id(fast_boot) = 0;
-                fast_boot->loop();
-                global_preferences->sync();
-                auto call = id(rgbww_light).turn_on();
-                call.set_transition_length(500);
-                call.set_brightness(1.0);
-                call.set_color_mode(ColorMode::RGB);
-                call.set_rgb(0.0, 0.0, 1.0);
-                call.perform();
-            - delay: 5s
-            - button.press: button_factory_reset
-      - lambda: |-
-          id(fast_boot) += 1;
-          fast_boot->loop();
-          global_preferences->sync();
-          ESP_LOGD("plug-athom-esp32c3.yaml", "Now the counter is %d.  Reset the device when the counter is greater than or equal to 3", id(fast_boot));
-      - delay: 10s
-      - lambda: |-
-          ESP_LOGD("plug-athom-esp32c3.yaml", "Reset counter");
-          id(fast_boot) = 0;
-          fast_boot->loop();
-          global_preferences->sync();
