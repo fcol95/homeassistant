@@ -1,15 +1,22 @@
+globals:
+  - id: fast_boot
+    type: int
+    restore_value: yes
+    initial_value: "0"
+
 esphome:
   name: "${device_name}"
   friendly_name: "${device_friendly_name}"
-  comment: "athom esp32-c3 smart plug"
-  min_version: 2025.7.0
+  comment: "athom esp32c3 rgbcw bulb"
+  min_version: 2025.8.0
   project:
-    name: "China Athom Technology.Smart Plug V3"
-    version: "v2.0.1"
+    name: "China Athom Technology.Athom RGBCW Bulb"
+    version: "v3.2.1"
   platformio_options:
-    board_build.mcu: esp32c3
-    board_build.variant: esp32c3
     board_build.flash_mode: dio
+  on_boot:
+    then:
+      - script.execute: fast_boot_script
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -28,9 +35,8 @@ esp32:
       CONFIG_ESP_TASK_WDT_TIMEOUT_S: "10"
 
 preferences:
-  flash_write_interval: 5min
+  flash_write_interval: 1min
 
-# Enable Home Assistant API
 api:
   encryption:
     key: "${device_api_encryption_key}"
@@ -55,7 +61,7 @@ ota:
 
 logger:
   baud_rate: 0 # 0 Enables logging, but disables serial-port logging to free CPU and memory
-  level: "INFO" # (Overide any global setting, too VERBOSE will spamming the cse7766 sensors)
+  level: "DEBUG"
 
 mdns:
 
@@ -95,116 +101,11 @@ esp32_ble_tracker:
 bluetooth_proxy:
   active: true
 
-uart:
-  rx_pin: GPIO20
-  baud_rate: 4800
-  data_bits: 8
-  stop_bits: 1
-  parity: EVEN
-
 binary_sensor:
   - platform: status
     name: "Status"
     icon: mdi:check-network-outline
     entity_category: diagnostic
-
-  - platform: gpio
-    pin:
-      number: GPIO3
-      mode: INPUT_PULLUP
-      inverted: true
-    name: "Power Button"
-    id: power_button
-    disabled_by_default: true
-    on_multi_click:
-      - timing:
-          - ON for at most 1s
-          - OFF for at least 0.2s
-        then:
-          - switch.toggle: relay
-      - timing:
-          - ON for at least 4s
-        then:
-          - button.press: button_factory_reset
-
-sensor:
-  - platform: uptime
-    name: "Uptime Sensor"
-    id: uptime_sensor
-    type: timestamp
-    update_interval: 300s
-    entity_category: "diagnostic"
-
-  - platform: wifi_signal
-    name: "WiFi Signal dB"
-    id: wifi_signal_db
-    update_interval: 60s
-    entity_category: "diagnostic"
-
-  - platform: cse7766
-    id: athom_cse7766
-    current:
-      name: "Current"
-      icon: mdi:current-ac
-      filters:
-        - throttle_average: ${sensor_update_interval}
-        - lambda: if (x < 0.060) return 0.0; else return x; #For the chip will report less than 3w power when no load is connected
-      on_value_range:
-        - above: 16
-          then:
-            - switch.turn_off: relay
-
-    voltage:
-      name: "Voltage"
-      icon: mdi:sine-wave
-      filters:
-        - throttle_average: ${sensor_update_interval}
-
-    power:
-      name: "Power"
-      id: power_sensor
-      icon: mdi:power
-      filters:
-        - throttle_average: ${sensor_update_interval}
-        - lambda: if (x < 3.0) return 0.0; else return x; #For the chip will report less than 3w power when no load is connected
-
-    energy:
-      name: "Energy"
-      id: energy
-      icon: mdi:lightning-bolt
-      unit_of_measurement: kWh
-      filters:
-        - throttle: ${sensor_update_interval}
-        # Multiplication factor from W to kW is 0.001
-        - multiply: 0.001
-
-    apparent_power:
-      name: "Apparent Power"
-      icon: mdi:power
-      filters:
-        - throttle_average: ${sensor_update_interval}
-
-    reactive_power:
-      name: "Reactive Power"
-      icon: mdi:flash
-      filters:
-        - throttle_average: ${sensor_update_interval}
-
-    power_factor:
-      name: "Power Factor"
-      icon: mdi:percent-outline
-      filters:
-        - throttle_average: ${sensor_update_interval}
-
-  - platform: total_daily_energy
-    name: "Total Daily Energy"
-    restore: true
-    power_id: power_sensor
-    unit_of_measurement: kWh
-    icon: mdi:hours-24
-    accuracy_decimals: 3
-    filters:
-      - multiply: 0.001
 
 button:
   - platform: restart
@@ -221,23 +122,52 @@ button:
     internal: false
     entity_category: config
 
-switch:
-  - platform: gpio
-    name: "Switch"
+output:
+  - platform: ledc
+    id: red_output
+    frequency: 9765
+    pin: GPIO3
+    min_power: 0
+    max_power: 1
+  - platform: ledc
+    id: green_output
+    frequency: 9765
+    pin: GPIO4
+    min_power: 0
+    max_power: 1
+  - platform: ledc
+    id: blue_output
+    frequency: 9765
     pin: GPIO5
-    id: relay
-    restore_mode: ${switch_restore_mode}
-    icon: mdi:power-socket-us
+    min_power: 0
+    max_power: 1
+  - platform: ledc
+    id: white_output
+    frequency: 9765
+    pin: GPIO6
+    min_power: 0
+    max_power: 0.9
+  - platform: ledc
+    id: warm_white_output
+    frequency: 9765
+    pin: GPIO7
+    min_power: 0
+    max_power: 0.9
 
 light:
-  - platform: status_led
-    name: "Status LED"
-    id: blue_led
-    icon: mdi:lightbulb-outline
-    disabled_by_default: true
-    pin:
-      inverted: true
-      number: GPIO6
+  - platform: rgbww
+    id: rgbww_light
+    name: "RGBCW_Bulb"
+    restore_mode: ${light_restore_mode}
+    red: red_output
+    green: green_output
+    blue: blue_output
+    cold_white: white_output
+    warm_white: warm_white_output
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 3000 K
+    color_interlock: True
+    constant_brightness: True
 
 text_sensor:
   - platform: wifi_info
@@ -254,6 +184,51 @@ text_sensor:
       icon: mdi:network-pos
       entity_category: "diagnostic"
 
-time: # Required for total_daily_energy
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: uptime
+    name: "Uptime"
+    id: sensor_uptime
+    update_interval: 300s
+    entity_category: "diagnostic"
+
+time:
   - platform: homeassistant
-    id: hass_time
+    id: ha_time
+
+script:
+  - id: fast_boot_script
+    then:
+      - if:
+          condition:
+            lambda: return ( id(fast_boot) >= 3 );
+          then:
+            - lambda: |-
+                ESP_LOGD("light-athom-br30.yaml", "Now the counter is greater than or equal to 3, perform factory reset device and reboot");
+                id(fast_boot) = 0;
+                fast_boot->loop();
+                global_preferences->sync();
+                auto call = id(rgbww_light).turn_on();
+                call.set_transition_length(500);
+                call.set_brightness(1.0);
+                call.set_color_mode(ColorMode::RGB);
+                call.set_rgb(0.0, 0.0, 1.0);
+                call.perform();
+            - delay: 5s
+            - button.press: factory_reset
+      - lambda: |-
+          id(fast_boot) += 1;
+          fast_boot->loop();
+          global_preferences->sync();
+          ESP_LOGD("light-athom-br30.yaml", "Now the counter is %d.  Reset the device when the counter is greater than or equal to 3", id(fast_boot));
+      - delay: 10s
+      - lambda: |-
+          ESP_LOGD("light-athom-br30.yaml", "Reset counter");
+          id(fast_boot) = 0;
+          fast_boot->loop();
+          global_preferences->sync();
