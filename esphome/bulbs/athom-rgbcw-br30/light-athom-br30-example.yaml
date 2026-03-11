@@ -3,6 +3,6 @@ substitutions:
   device_friendly_name: "Light Example"
   device_api_encryption_key: "ENTER_YOUR_BASE64_ENCRYPTION_KEY_HERE!!!"
   device_ota_password: "ENTER_YOUR_OTA_PASSWORD_HERE!!!"
-  light_restore_mode: RESTORE_DEFAULT_OFF
+  light_restore_mode: RESTORE_DEFAULT_ON
 
 <<: !include templates/template-light-athom-br30.yaml
