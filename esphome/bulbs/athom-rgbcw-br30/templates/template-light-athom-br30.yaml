@@ -220,7 +220,7 @@ script:
                 call.set_rgb(0.0, 0.0, 1.0);
                 call.perform();
             - delay: 5s
-            - button.press: factory_reset
+            - button.press: button_factory_reset
       - lambda: |-
           id(fast_boot) += 1;
           fast_boot->loop();
